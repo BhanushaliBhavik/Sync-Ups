@@ -101,7 +101,7 @@ const PropertyCard = ({
     try {
       // Navigate to property detail screen
       router.push({
-        pathname: '/property/[id]',
+        pathname: '/PropertyDetailScreen',
         params: { id: property.id }
       });
     } catch (error) {
