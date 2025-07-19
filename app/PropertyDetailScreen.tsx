@@ -1,10 +1,11 @@
-import { Ionicons } from '@expo/vector-icons';
-import { Stack, useLocalSearchParams } from 'expo-router';
-import * as Linking from 'expo-linking';
-import React, { useState, useEffect, useCallback } from 'react';
-import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, ActivityIndicator, KeyboardAvoidingView, Platform, Alert } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useInquiry } from '@/hooks/useInquiry';
 import { usePropertyById } from '@/hooks/useProperties';
+import { Ionicons } from '@expo/vector-icons';
+import * as Linking from 'expo-linking';
+import { Stack, useLocalSearchParams } from 'expo-router';
+import React, { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 // Interactive Tool Card Component
 const ToolCard = ({ 
@@ -122,9 +123,24 @@ export default function PropertyDetailScreen() {
   const [emiAmount, setEmiAmount] = useState(0);
   const [totalAmount, setTotalAmount] = useState(0);
   const [totalInterest, setTotalInterest] = useState(0);
+  
+  // Inquiry state
+  const [showInquiryModal, setShowInquiryModal] = useState(false);
+  const [inquiryMessage, setInquiryMessage] = useState('');
 
   // Fetch property data using the ID
   const { property, loading, error, refetch } = usePropertyById(id || '', { autoFetch: !!id });
+
+  // Use inquiry hook
+  const { 
+    inquiry, 
+    hasInquired, 
+    loading: inquiryLoading, 
+    error: inquiryError, 
+    isAuthenticated: inquiryAuthenticated,
+    createInquiry, 
+    clearError: clearInquiryError 
+  } = useInquiry({ propertyId: id, autoCheck: !!id });
 
   const totalImages = property?.property_images?.length || 1;
 
@@ -158,9 +174,9 @@ export default function PropertyDetailScreen() {
   // Update loan amount when property price changes
   useEffect(() => {
     if (property?.price) {
-      // Set loan amount to 80% of property price (typical down payment scenario)
-      const suggestedLoanAmount = Math.floor(property.price * 0.8);
-      setLoanAmount(suggestedLoanAmount.toLocaleString());
+      // Set loan amount to property price (full property price as loan)
+      const propertyPrice = Math.floor(property.price);
+      setLoanAmount(propertyPrice.toLocaleString());
     }
   }, [property?.price]);
 
@@ -208,6 +224,58 @@ export default function PropertyDetailScreen() {
     setTenure(cleaned);
   };
 
+  // Inquiry handlers
+  const handleOpenInquiryModal = () => {
+    if (!inquiryAuthenticated) {
+      Alert.alert(
+        'Sign In Required',
+        'Please sign in to create an inquiry about this property.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Sign In', onPress: () => {
+            // Navigate to sign in - you can implement this based on your navigation
+            console.log('Navigate to sign in');
+          }}
+        ]
+      );
+      return;
+    }
+    setShowInquiryModal(true);
+  };
+
+  const handleCloseInquiryModal = () => {
+    setShowInquiryModal(false);
+    setInquiryMessage('');
+    clearInquiryError();
+  };
+
+  const handleSubmitInquiry = async () => {
+    try {
+      await createInquiry(inquiryMessage);
+      setShowInquiryModal(false);
+      setInquiryMessage('');
+      Alert.alert(
+        'Inquiry Sent!',
+        'Your inquiry has been submitted successfully. We will get back to you soon.',
+        [{ text: 'OK' }]
+      );
+    } catch (error) {
+      // Error is handled by the hook
+      console.error('Error submitting inquiry:', error);
+    }
+  };
+
+  const getInquiryButtonText = () => {
+    if (inquiryLoading) return 'Loading...';
+    if (hasInquired) return 'Inquiry Sent';
+    return 'Send Inquiry';
+  };
+
+  const getInquiryButtonColor = () => {
+    if (hasInquired) return '#10B981'; // Green for sent
+    return '#007C91'; // Primary blue
+  };
+
   // Handle opening Google Maps
   const handleOpenMap = async () => {
     if (!property?.latitude || !property?.longitude) {
@@ -240,6 +308,16 @@ export default function PropertyDetailScreen() {
         [{ text: 'OK' }]
       );
     }
+  };
+
+  // Handle Call Now button
+  const handleCallNow = () => {
+    const phone = property?.seller?.phone;
+    if (!phone) {
+      Alert.alert('No Phone Number', 'Seller phone number is not available.');
+      return;
+    }
+    Linking.openURL(`tel:${phone}`);
   };
 
   // Loading state
@@ -360,14 +438,34 @@ export default function PropertyDetailScreen() {
               <ActionButton
                 title="Call Now"
                 icon="call-outline"
-                onPress={() => {}}
+                onPress={handleCallNow}
               />
-              <ActionButton
+              {/* <ActionButton
                 title="Chat"
                 icon="chatbubble-outline"
-                onPress={() => {}}
-                />
+                onPress={() => {}} */}
+                {/* /> */}
             </View>
+            
+            {/* Inquiry Button */}
+            <TouchableOpacity
+              style={[
+                styles.inquiryButton,
+                { backgroundColor: getInquiryButtonColor() },
+                hasInquired && styles.inquiryButtonSent
+              ]}
+              onPress={handleOpenInquiryModal}
+              disabled={inquiryLoading || hasInquired}
+            >
+              <Ionicons 
+                name={hasInquired ? "checkmark-circle" : "mail-outline"} 
+                size={20} 
+                color="#FFFFFF" 
+              />
+              <Text style={styles.inquiryButtonText}>
+                {getInquiryButtonText()}
+              </Text>
+            </TouchableOpacity>
           </View>
 
           {/* Interactive Tools - Section 2 */}
@@ -409,7 +507,7 @@ export default function PropertyDetailScreen() {
             </View>
             
             <InputField
-              label="Loan Amount"
+              label="Loan Amount (Property Price)"
               value={loanAmount}
               suffix="₹"
               onChangeText={handleLoanAmountChange}
@@ -443,10 +541,88 @@ export default function PropertyDetailScreen() {
                 <Text style={styles.emiResultValue}>{formatCurrency(totalInterest)}</Text>
               </View>
             </View>
+            {/* Note about loan amount */}
+            <View className="bg-blue-50 rounded-md p-3 mt-2">
+              <Text className="text-blue-700 text-sm">
+                💡 Loan amount is set to the property price. You can adjust it based on your down payment.
+              </Text>
+            </View>
+            {/* Note about loan amount */}
+            <View className="bg-blue-50 rounded-md p-3 mt-2">
+              <Text className="text-blue-700 text-sm">
+                💡 Loan amount is set to the property price. You can adjust it based on your down payment.
+              </Text>
+            </View>
           </View>
         </ScrollView>
       </SafeAreaView>
     </KeyboardAvoidingView>
+
+    {/* Inquiry Modal */}
+    <Modal
+      visible={showInquiryModal}
+      animationType="slide"
+      transparent={true}
+      onRequestClose={handleCloseInquiryModal}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContent}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Send Inquiry</Text>
+            <TouchableOpacity onPress={handleCloseInquiryModal}>
+              <Ionicons name="close" size={24} color="#6B7280" />
+            </TouchableOpacity>
+          </View>
+          
+          <Text style={styles.modalSubtitle}>
+            Tell us more about your interest in this property
+          </Text>
+          
+          {inquiryError && (
+            <View style={styles.errorContainer}>
+              <Text style={styles.errorText}>{inquiryError}</Text>
+            </View>
+          )}
+          
+          <View style={styles.inputContainer}>
+            <Text style={styles.inputLabel}>Message (Optional)</Text>
+            <TextInput
+              style={styles.textArea}
+              value={inquiryMessage}
+              onChangeText={setInquiryMessage}
+              placeholder="I'm interested in this property. Please provide more details about..."
+              placeholderTextColor="#9CA3AF"
+              multiline
+              numberOfLines={4}
+              textAlignVertical="top"
+            />
+          </View>
+          
+          <View style={styles.modalActions}>
+            <TouchableOpacity
+              style={styles.cancelButton}
+              onPress={handleCloseInquiryModal}
+            >
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.submitButton,
+                { backgroundColor: inquiryLoading ? '#9CA3AF' : '#007C91' }
+              ]}
+              onPress={handleSubmitInquiry}
+              disabled={inquiryLoading}
+            >
+              {inquiryLoading ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <Text style={styles.submitButtonText}>Send Inquiry</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
   </>
   );
 }
@@ -791,5 +967,97 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#D1D5DB',
+  },
+  // Inquiry Button Styles
+  inquiryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    marginTop: 12,
+    gap: 8,
+  },
+  inquiryButtonSent: {
+    opacity: 0.8,
+  },
+  inquiryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  // Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 20,
+    margin: 20,
+    width: '90%',
+    maxWidth: 400,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#111827',
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginBottom: 20,
+    lineHeight: 20,
+  },
+  textArea: {
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    color: '#111827',
+    minHeight: 100,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 20,
+    gap: 12,
+  },
+  cancelButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    alignItems: 'center',
+  },
+  cancelButtonText: {
+    color: '#6B7280',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  submitButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  submitButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

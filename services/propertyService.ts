@@ -134,6 +134,12 @@ class PropertyService {
             email,
             phone,
             profile_image_url
+          ),
+          seller:users!properties_seller_id_fkey (
+            id,
+            name,
+            email,
+            phone
           )
         `)
         .eq('id', id)
