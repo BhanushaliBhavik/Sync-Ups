@@ -1,5 +1,6 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useEffect } from 'react';
+import { supabase } from '../lib/supabase';
 import { AuthError, authService, SignInData, SignUpData } from '../services/authService';
 import { authStore } from '../stores/authStore';
 
@@ -31,29 +32,14 @@ export const useSignUp = () => {
       authStore.clearError();
     },
     onSuccess: (user) => {
-      console.log('✅ useSignUp onSuccess: User created:', user.id);
+      console.log('✅ useSignUp onSuccess: User processed:', user.id);
       
-      // Check if user needs email confirmation by trying to get current session
-      authService.getCurrentUser().then(confirmedUser => {
-        if (confirmedUser) {
-          console.log('✅ User has session - confirmed and signed in');
-          authStore.setUser(user);
-        } else {
-          console.log('📧 User needs email confirmation - setting as unconfirmed');
-          authStore.setUnconfirmedUser(user);
-        }
-        authStore.setLoading(false);
-      }).catch(() => {
-        console.log('📧 No session found - user needs email confirmation');
-        authStore.setUnconfirmedUser(user);
-        authStore.setLoading(false);
-      });
+      // With your backend, the user is created immediately
+      // We set them as the main user (not unconfirmed)
+      authStore.setUser(user);
+      authStore.setLoading(false);
       
-      // Immediately check if user is properly set
-      setTimeout(() => {
-        const currentUser = authStore.getCurrentUser();
-        console.log('🔍 useSignUp: Current user after setting:', currentUser ? 'Present' : 'Missing');
-      }, 100);
+      console.log('✅ User set in auth store:', user.id);
     },
     onError: (error: Error) => {
       console.error('❌ useSignUp onError:', error);
@@ -149,64 +135,92 @@ export const useAuthInit = () => {
     console.log('🔧 useAuthInit: Starting auth initialization');
     
     const initializeAuth = async () => {
-      // Check if we have a current user (confirmed or unconfirmed)
-      const currentUser = authStore.getCurrentUser();
-      console.log('🔍 useAuthInit: Current user in store:', currentUser ? 'Present' : 'None');
-      console.log('🔍 useAuthInit: Waiting for confirmation:', authStore.isWaitingForConfirmation);
-      
-      if (currentUser) {
-        console.log('✅ useAuthInit: User already in store, skipping initial check');
-        authStore.setLoading(false);
-        return;
-      }
-      
-      // Only check for stored session if no user is currently set
       try {
-        console.log('🔍 useAuthInit: Checking for stored session');
-        const user = await authService.getCurrentUser();
+        authStore.setLoading(true);
         
-        if (mounted) {
-          console.log('📱 useAuthInit: Retrieved user:', user ? 'Found' : 'None');
-          authStore.setUser(user);
-          authStore.setLoading(false);
+        // Get initial user state
+        const currentUser = await authService.getCurrentUser();
+        console.log('🔍 useAuthInit: Initial user check:', currentUser ? 'Present' : 'None');
+        
+        if (currentUser && mounted) {
+          authStore.setUser(currentUser);
+          console.log('✅ useAuthInit: User restored from session');
+        } else if (mounted) {
+          console.log('ℹ️ useAuthInit: No session found');
         }
       } catch (error) {
+        console.error('❌ useAuthInit: Error getting initial user:', error);
+      } finally {
         if (mounted) {
-          console.warn('❌ useAuthInit: Failed to get initial user:', error);
-          // Only set user to null if there wasn't already a user
-          if (!authStore.getCurrentUser()) {
-            authStore.setUser(null);
-          }
           authStore.setLoading(false);
         }
       }
     };
 
-    // Small delay to let any signup/signin operations complete first
-    const initTimer = setTimeout(initializeAuth, 100);
-
-    // Listen to auth state changes
-    console.log('👂 useAuthInit: Setting up auth state change listener');
-    const { data: { subscription } } = authService.onAuthStateChange((user) => {
-      if (mounted) {
-        console.log('🔄 useAuthInit: Auth state changed:', user ? 'User present' : 'No user');
+    // Set up Supabase auth state listener for real-time changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event: string, session: any) => {
+        console.log('🔄 Auth state change detected:', event, !!session);
         
-        // Only update if we don't have an unconfirmed user waiting
-        if (!authStore.isWaitingForConfirmation) {
-          authStore.setUser(user);
-        } else if (user) {
-          // If we were waiting for confirmation and now have a user, they confirmed!
-          console.log('🎉 Email confirmation completed!');
-          authStore.setUser(user);
+        if (!mounted) return;
+
+        switch (event) {
+          case 'SIGNED_IN':
+            console.log('✅ User signed in via auth state change');
+            if (session?.user) {
+              const userData = {
+                id: session.user.id,
+                email: session.user.email || '',
+                name: session.user.user_metadata?.name || '',
+                createdAt: session.user.created_at || '',
+              };
+              
+              // Check if this was a confirmation from an unconfirmed state
+              if (authStore.isWaitingForConfirmation && authStore.unconfirmedUser) {
+                console.log('🎉 Email confirmation detected! User was waiting, now confirmed');
+              }
+              
+              authStore.setUser(userData);
+            }
+            break;
+            
+          case 'SIGNED_OUT':
+            console.log('👋 User signed out via auth state change');
+            authStore.signOut();
+            break;
+            
+          case 'TOKEN_REFRESHED':
+            console.log('🔄 Token refreshed');
+            // Session is still valid, no action needed
+            break;
+            
+          case 'USER_UPDATED':
+            console.log('👤 User updated via auth state change');
+            if (session?.user) {
+              const userData = {
+                id: session.user.id,
+                email: session.user.email || '',
+                name: session.user.user_metadata?.name || '',
+                createdAt: session.user.created_at || '',
+              };
+              authStore.setUser(userData);
+            }
+            break;
+            
+          default:
+            console.log('ℹ️ Unknown auth event:', event);
         }
       }
-    });
+    );
 
+    // Initialize auth
+    initializeAuth();
+
+    // Cleanup function
     return () => {
       console.log('🧹 useAuthInit: Cleaning up');
       mounted = false;
-      clearTimeout(initTimer);
-      subscription.unsubscribe();
+      subscription?.unsubscribe();
     };
   }, []);
 }; 

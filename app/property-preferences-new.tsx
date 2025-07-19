@@ -3,18 +3,17 @@ import { useFocusEffect } from '@react-navigation/native';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  ScrollView,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View
+    ActivityIndicator,
+    Alert,
+    ScrollView,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthStore } from '../hooks/useAuth';
 import { useGetPreferences, useSavePreferences } from '../hooks/usePreferences';
-import { testSupabaseConnection } from '../lib/testSupabaseConnection';
 import { navigationService } from '../services/navigationService';
 
 interface LocalPreferences {
@@ -134,24 +133,7 @@ export default function PropertyPreferences() {
     const currentUser = authStore.getCurrentUser();
     
     if (!currentUser?.id) {
-      Alert.alert('Authentication Required', 'Please sign in to save preferences');
-      return;
-    }
-
-    // Check if user is waiting for email confirmation
-    if (authStore.isWaitingForConfirmation) {
-      Alert.alert(
-        'Email Confirmation Required 📧',
-        'Please check your email and click the confirmation link before saving preferences. Once confirmed, you can set your preferences.',
-        [
-          {
-            text: 'OK',
-            onPress: () => {
-              // Stay on preferences screen - user can try again after confirming email
-            }
-          }
-        ]
-      );
+      Alert.alert('Error', 'Please sign in to save preferences');
       return;
     }
 
@@ -185,61 +167,35 @@ export default function PropertyPreferences() {
         // Initial setup mode - mark preferences as completed and handle navigation
         await navigationService.setPreferencesCompleted(currentUser.id, false);
         
-        Alert.alert(
-          'Preferences Saved!',
-          'Your property preferences have been saved. Let\'s find your perfect home!',
-          [
-            {
-              text: 'Continue',
-              onPress: () => {
-                // Always go to search after saving preferences, never go back
-                console.log('🏠 Preferences saved successfully, navigating to search screen');
-                router.replace('/(tabs)/search');
+        if (authStore.isWaitingForConfirmation) {
+          Alert.alert(
+            'Preferences Saved! 📧',
+            'Your preferences are saved! Please check your email and confirm your account to start searching for homes.',
+            [{ text: 'OK' }]
+          );
+        } else {
+          Alert.alert(
+            'Preferences Saved!',
+            'Your property preferences have been saved. Let\'s find your perfect home!',
+            [
+              {
+                text: 'Continue',
+                onPress: () => {
+                  if (router.canGoBack()) {
+                    router.back();
+                  } else {
+                    router.push('/(tabs)/search');
+                  }
+                }
               }
-            }
-          ]
-        );
+            ]
+          );
+        }
       }
         
     } catch (error: any) {
       console.error('Save preferences error:', error.message);
-      
-      // Handle specific authentication errors
-      if (error.message.includes('confirm your email')) {
-        Alert.alert(
-          'Email Confirmation Required 📧',
-          error.message,
-          [
-            {
-              text: 'Resend Email',
-              onPress: () => {
-                // TODO: Add resend email confirmation functionality
-                Alert.alert('Info', 'Please check your email inbox and spam folder for the confirmation link.');
-              }
-            },
-            { text: 'OK', style: 'cancel' }
-          ]
-        );
-      } else if (error.message.includes('sign in')) {
-        Alert.alert(
-          'Authentication Error',
-          error.message,
-          [
-            {
-              text: 'Go to Sign In',
-              onPress: () => router.push('/auth/signin')
-            },
-            { text: 'Cancel', style: 'cancel' }
-          ]
-        );
-      } else {
-        // General error
-        Alert.alert(
-          'Save Failed',
-          `Unable to save preferences: ${error.message}`,
-          [{ text: 'OK' }]
-        );
-      }
+      // Error is already handled by React Query mutation onError callback
     }
   };
 
@@ -351,20 +307,6 @@ export default function PropertyPreferences() {
                   }}
                 >
                   <Text className="text-yellow-800 text-xs text-center">Debug State</Text>
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  className="mt-2 p-2 bg-blue-200 rounded"
-                  onPress={async () => {
-                    console.log('🧪 Testing Supabase Connection...');
-                    const result = await testSupabaseConnection();
-                    Alert.alert(
-                      result.success ? 'Supabase Test Passed ✅' : 'Supabase Test Failed ❌',
-                      result.message || result.error || 'Unknown result',
-                      [{ text: 'OK' }]
-                    );
-                  }}
-                >
-                  <Text className="text-blue-800 text-xs text-center">Test Supabase</Text>
                 </TouchableOpacity>
               </View>
             )}

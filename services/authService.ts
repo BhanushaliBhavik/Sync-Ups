@@ -13,15 +13,13 @@ export interface SignInData {
 export interface SignUpData {
   email: string;
   password: string;
-  firstName?: string;
-  lastName?: string;
+  name: string;
 }
 
 export interface User {
   id: string;
   email: string;
-  firstName?: string;
-  lastName?: string;
+  name: string;
   createdAt: string;
 }
 
@@ -97,8 +95,7 @@ export const authService = {
       return {
         id: authData.user.id,
         email: authData.user.email || '',
-        firstName: authData.user.user_metadata?.firstName || '',
-        lastName: authData.user.user_metadata?.lastName || '',
+        name: authData.user.user_metadata?.name || '',
         createdAt: authData.user.created_at || '',
       };
     } catch (error) {
@@ -109,7 +106,7 @@ export const authService = {
 
   async signUp(data: SignUpData): Promise<User> {
     try {
-      const { email, password, firstName, lastName } = data;
+      const { email, password, name } = data;
       
       // Validation
       if (!email.trim()) {
@@ -124,95 +121,130 @@ export const authService = {
         throw new AuthError('Password must be at least 6 characters long');
       }
       
-      if (!firstName?.trim()) {
-        throw new AuthError('First name is required');
-      }
-      
-      if (!lastName?.trim()) {
-        throw new AuthError('Last name is required');
+      if (!name?.trim()) {
+        throw new AuthError('Name is required');
       }
       
       console.log('Attempting to sign up user:', email);
       
-      const { data: authData, error } = await supabase.auth.signUp({
+      // Use your existing backend signup endpoint
+      const baseUrl = process.env.EXPO_PUBLIC_API_URL || 'https://home-hub-ten.vercel.app';
+      // Remove trailing /api if present to avoid double /api/
+      const cleanBaseUrl = baseUrl.replace(/\/api\/?$/, '');
+      const apiUrl = `${cleanBaseUrl}/api/auth/signup`;
+      
+      console.log('🔗 Signup API URL:', apiUrl);
+      
+      console.log('📤 Signup API Request - User data:', {
         email: email.trim(),
-        password,
-        options: {
-          data: {
-            firstName: firstName.trim(),
-            lastName: lastName.trim(),
-          },
-          // Explicitly disable email confirmation for auto sign-in
-          emailRedirectTo: undefined,
+        password: '***', // Don't log password
+        name: name.trim(),
+        role: 'buyer'
+      });
+
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
         },
+        body: JSON.stringify({
+          email: email.trim(),
+          password: password,
+          name: name.trim(),
+          role: 'buyer', // Always assign buyer role
+          phone: null, // Optional phone field your backend expects
+        }),
       });
 
-      console.log('📋 Sign up response:', {
-        user: authData.user ? 'Present' : 'Missing',
-        session: authData.session ? 'Present' : 'Missing',
-        error: error ? error.message : 'None'
-      });
+      console.log('📥 Signup API Response Status:', response.status);
 
-      if (error) {
-        console.error('❌ Sign up error:', error);
+      if (!response.ok) {
+        const errorData = await response.text();
+        console.error('❌ Signup API failed:', response.status, errorData);
         
-        // Handle specific signup errors
-        if (error.message.includes('User already registered')) {
-          throw new AuthError('This email is already registered. Please sign in instead.');
-        } else if (error.message.includes('Invalid email')) {
-          throw new AuthError('Please enter a valid email address.');
-        } else if (error.message.includes('Password')) {
-          throw new AuthError('Password must be at least 6 characters long.');
-        }
-        
-        handleAuthError(error);
-      }
-
-      if (!authData.user) {
-        throw new AuthError('Sign up failed. Please try again.');
-      }
-
-      // Check if we have a session (user should be automatically signed in)
-      if (!authData.session) {
-        console.warn('⚠️ No session after signup - user may need to confirm email');
-        // If no session, try to sign in the user automatically
-        console.log('🔄 Attempting auto sign-in after signup...');
+        let errorMessage = 'Signup failed. Please try again.';
         
         try {
-          const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-            email: email.trim(),
-            password,
-          });
-          
-          console.log('🔄 Auto sign-in result:', {
-            user: signInData.user ? 'Present' : 'Missing',
-            session: signInData.session ? 'Present' : 'Missing',
-            error: signInError ? signInError.message : 'None'
-          });
-          
-          if (signInError || !signInData.session) {
-            console.warn('⚠️ Auto sign-in failed, user may need email confirmation');
+          const errorJson = JSON.parse(errorData);
+          if (errorJson.error) {
+            errorMessage = errorJson.error;
           }
-        } catch (autoSignInError) {
-          console.warn('⚠️ Auto sign-in attempt failed:', autoSignInError);
+        } catch (e) {
+          // Use the raw error text if JSON parsing fails
+          if (errorData) {
+            errorMessage = errorData;
+          }
         }
-      } else {
-        console.log('✅ Session established after signup - user is automatically signed in');
+        
+        // Handle specific errors based on status code
+        if (response.status === 400) {
+          throw new AuthError(errorMessage);
+        } else if (response.status === 409) {
+          throw new AuthError(errorMessage);
+        } else if (response.status === 405) {
+          console.log('❌ Signup API failed:', response, e);
+          throw new AuthError('Signup endpoint not available. Please contact support.');
+        } else if (response.status >= 500) {
+          throw new AuthError('Server error during signup. Please try again later.');
+        } else {
+          throw new AuthError(errorMessage);
+        }
       }
 
-      console.log('✅ Sign up successful, user created:', authData.user.id);
+      const result = await response.json();
+      console.log('✅ Signup API Response Data:', {
+        success: result.success,
+        message: result.message,
+        user: result.user ? 'Present' : 'Missing',
+        isVerified: result.user?.is_verified,
+        isExistingUser: result.isExistingUser || false
+      });
 
-      return {
-        id: authData.user.id,
-        email: authData.user.email || '',
-        firstName: firstName.trim(),
-        lastName: lastName.trim(),
-        createdAt: authData.user.created_at || '',
+      // Validate response structure
+      if (!result.success || !result.user) {
+        throw new AuthError(result.message || 'Invalid response from signup API. Please try again.');
+      }
+
+      // Handle existing user case
+      if (result.isExistingUser) {
+        console.log('✅ Role added to existing user successfully');
+      } else {
+        console.log('✅ New user created successfully');
+      }
+
+      // Handle email verification requirement
+      const needsVerification = !result.user.is_verified;
+      if (needsVerification) {
+        console.log('📧 User needs email verification');
+      } else {
+        console.log('✅ User is verified and ready');
+      }
+
+      // Return user data in our expected format
+      const user: User = {
+        id: result.user.id,
+        email: result.user.email,
+        name: result.user.name,
+        createdAt: result.user.created_at || new Date().toISOString(),
       };
+
+      console.log('✅ User successfully processed via backend API:', user.id);
+
+      // Note: Your backend doesn't return a JWT token, it uses its own auth system
+      console.log('ℹ️ Backend uses its own authentication system (no JWT token in response)');
+
+      return user;
+
     } catch (error) {
-      console.error('Sign up process error:', error);
       if (error instanceof AuthError) throw error;
-      return handleAuthError(error);
+      
+      console.error('❌ Unexpected signup error:', error);
+      
+      if (error instanceof Error && (error.message.includes('Network request failed') || error.message.includes('fetch'))) {
+        throw new AuthError('Network error. Please check your internet connection and try again.');
+      }
+      
+      throw new AuthError('An unexpected error occurred during signup. Please try again.');
     }
   },
 
@@ -251,8 +283,7 @@ export const authService = {
       return {
         id: user.id,
         email: user.email || '',
-        firstName: user.user_metadata?.firstName || '',
-        lastName: user.user_metadata?.lastName || '',
+        name: user.user_metadata?.name || '',
         createdAt: user.created_at || '',
       };
     } catch (error: any) {
@@ -273,7 +304,7 @@ export const authService = {
     try {
       // Create redirect URL for your app
       const redirectUrl = makeRedirectUri({
-        scheme: 'realestate', // This should match your app scheme in app.json
+        scheme: 'realrrestate', // This should match your app scheme in app.json
         path: '/auth/callback',
       });
 
@@ -410,8 +441,7 @@ export const authService = {
           const user = {
             id: session.user.id,
             email: session.user.email || '',
-            firstName: session.user.user_metadata?.firstName || '',
-            lastName: session.user.user_metadata?.lastName || '',
+            name: session.user.user_metadata?.name || '',
             createdAt: session.user.created_at || '',
           };
           console.log('✅ AuthService: Calling callback with user:', user.id);

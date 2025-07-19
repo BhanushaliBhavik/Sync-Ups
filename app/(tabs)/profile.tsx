@@ -4,15 +4,17 @@ import React, { useEffect, useState } from 'react';
 import { Alert, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthStore, useSignOut } from '../../hooks/useAuth';
+import { useHasPreferences } from '../../hooks/usePreferences';
 import { User } from '../../services/authService';
-import { preferencesService } from '../../services/preferencesService';
 
 export default function ProfileScreen() {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [hasPreferences, setHasPreferences] = useState<boolean | null>(null);
   const authStore = useAuthStore();
   const signOutMutation = useSignOut();
+  
+  // Use React Query hook to check preferences
+  const { hasPreferences, isLoading: isCheckingPreferences } = useHasPreferences();
 
   // Monitor auth state changes
   useEffect(() => {
@@ -35,23 +37,6 @@ export default function ProfileScreen() {
       clearTimeout(timer);
     };
   }, [authStore]);
-
-  // Check if user has preferences
-  useEffect(() => {
-    const checkPreferences = async () => {
-      if (user?.id) {
-        try {
-          const preferences = await preferencesService.getPreferences(user.id);
-          setHasPreferences(!!preferences);
-        } catch (error) {
-          console.log('Could not check preferences:', error);
-          setHasPreferences(false);
-        }
-      }
-    };
-
-    checkPreferences();
-  }, [user?.id]);
 
   const handleManagePreferences = () => {
     router.push('/property-preferences?mode=edit');
@@ -106,8 +91,8 @@ export default function ProfileScreen() {
         {/* User Info */}
         {user && (
           <View className="mb-8 p-6 bg-surface rounded-xl border border-border shadow-sm">
-            <Text className="text-lg font-semibold text-text-primary mb-2">
-              {user.firstName} {user.lastName}
+            <Text className="text-2xl font-bold text-text-primary mb-1">
+              {user.name}
             </Text>
             <Text className="text-text-secondary mb-2">
               {user.email}
@@ -126,25 +111,27 @@ export default function ProfileScreen() {
           </TouchableOpacity>
           
           {/* Property Preferences */}
-          {hasPreferences !== null && (
-            <TouchableOpacity
-              className="mb-2 p-4 bg-surface border border-border rounded-xl flex-row items-center justify-between shadow-sm"
-              onPress={handleManagePreferences}
-            >
-              <View className="flex-row items-center">
-                <Ionicons name="home-outline" size={20} color="#007C91" />
-                <Text className="text-text-primary font-medium ml-3">
-                  Property Preferences
-                </Text>
-              </View>
-              <View className="flex-row items-center">
-                {hasPreferences && (
-                  <View className="w-2 h-2 bg-success rounded-full mr-2" />
-                )}
-                <Ionicons name="chevron-forward" size={16} color="#6B7280" />
-              </View>
-            </TouchableOpacity>
-          )}
+          <TouchableOpacity
+            className="mb-2 p-4 bg-surface border border-border rounded-xl flex-row items-center justify-between shadow-sm"
+            onPress={handleManagePreferences}
+          >
+            <View className="flex-row items-center">
+              <Ionicons name="home-outline" size={20} color="#007C91" />
+              <Text className="text-text-primary font-medium ml-3">
+                Property Preferences
+              </Text>
+            </View>
+            <View className="flex-row items-center">
+              {isCheckingPreferences ? (
+                <View className="w-4 h-4 mr-2">
+                  <View className="w-2 h-2 bg-gray-300 rounded-full animate-pulse" />
+                </View>
+              ) : hasPreferences ? (
+                <View className="w-2 h-2 bg-success rounded-full mr-2" />
+              ) : null}
+              <Ionicons name="chevron-forward" size={16} color="#6B7280" />
+            </View>
+          </TouchableOpacity>
           
           <TouchableOpacity className="mb-2 p-4 bg-surface border border-border rounded-xl flex-row items-center shadow-sm">
             <Ionicons name="heart-outline" size={20} color="#6B7280" />

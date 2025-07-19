@@ -1,189 +1,186 @@
+import { supabase } from '../lib/supabase';
+import { authStore } from '../stores/authStore';
+
 export interface PropertyPreferences {
   id?: string;
-  user_id: string;
-  location: string;
-  location_tags: string[];
+  user_id?: string;
+  preferred_location: string;
+  location_type: string[];
   home_types: string[];
-  min_price: string;
-  max_price: string;
-  price_ranges: string[];
-  bedrooms: string;
-  bathrooms: string;
+  min_price: number;
+  max_price: number;
+  bedrooms: number;
+  bathrooms: number;
   amenities: string[];
   latitude?: number;
   longitude?: number;
-  nearby_areas?: string[]; // Will be calculated on your backend
   created_at?: string;
   updated_at?: string;
 }
 
-// API endpoints - replace with your actual URLs when available
-const API_BASE_URL = 'https://your-api-domain.com/api'; // Replace with your actual API URL
-const ENDPOINTS = {
-  SAVE_PREFERENCES: `${API_BASE_URL}/preferences`,
-  GET_PREFERENCES: `${API_BASE_URL}/preferences`,
-  DELETE_PREFERENCES: `${API_BASE_URL}/preferences`,
-  SEARCH_LOCATIONS: `${API_BASE_URL}/locations/search`,
-};
-
-const isDevelopment = __DEV__;
-
 export const preferencesService = {
-  async savePreferences(userId: string, preferences: Omit<PropertyPreferences, 'id' | 'user_id' | 'created_at' | 'updated_at'>): Promise<PropertyPreferences> {
+  async getPreferences(): Promise<PropertyPreferences | null> {
     try {
-      // When you have latitude/longitude, your backend will calculate nearby areas
-      const response = await fetch(ENDPOINTS.SAVE_PREFERENCES, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${userId}`, // You might want to use actual JWT token
-        },
-        body: JSON.stringify({
-          user_id: userId,
-          ...preferences,
-          // Your backend will calculate nearby_areas using lat/lng
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`API Error: ${response.status} ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      return data;
-    } catch (error) {
-      if (isDevelopment) {
-        console.log('💡 Dev Mode: Using mock data since API is not available yet');
-      } else {
-        console.error('Error saving preferences:', error);
-      }
+      // Get current user from auth store
+      const currentUser = authStore.getCurrentUser();
       
-      // For development, return mock data. In production, throw the error
-      if (isDevelopment) {
-        // Simulate network delay
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        return {
-          id: 'mock-id-' + Date.now(),
-          user_id: userId,
-          ...preferences,
-          nearby_areas: preferences.latitude && preferences.longitude ? [
-            'Downtown Core',
-            'Marina District', 
-            'Shopping Center',
-            'University Area'
-          ] : [],
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        } as PropertyPreferences;
-      }
-      
-      throw new Error('Failed to save preferences. Please check your connection and try again.');
-    }
-  },
-
-  async getPreferences(userId: string): Promise<PropertyPreferences | null> {
-    try {
-      const response = await fetch(`${ENDPOINTS.GET_PREFERENCES}/${userId}`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${userId}`, // You might want to use actual JWT token
-        },
-      });
-
-      if (response.status === 404) {
-        return null; // No preferences found
+      if (!currentUser?.id) {
+        console.log('🔒 No authenticated user found in auth store');
+        return null;
       }
 
-      if (!response.ok) {
-        throw new Error(`API Error: ${response.status} ${response.statusText}`);
-      }
+      console.log('📊 Fetching preferences from Supabase for user:', currentUser.id);
 
-      const data = await response.json();
-      return data;
-    } catch (error) {
-      if (isDevelopment) {
-        console.log('💡 Dev Mode: No preferences found (API not available)');
-        return null; // Return null so user can create new preferences
-      } else {
-        console.error('Error getting preferences:', error);
-        throw new Error('Failed to load preferences. Please try again.');
-      }
-    }
-  },
+      // Get preferences directly from Supabase
+      const { data: preferences, error } = await supabase
+        .from('user_preferences')
+        .select('*')
+        .eq('user_id', currentUser.id)
+        .single();
 
-  async deletePreferences(userId: string): Promise<void> {
-    try {
-      const response = await fetch(`${ENDPOINTS.DELETE_PREFERENCES}/${userId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${userId}`, // You might want to use actual JWT token
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`API Error: ${response.status} ${response.statusText}`);
-      }
-    } catch (error) {
-      if (isDevelopment) {
-        console.log('💡 Dev Mode: Mock deletion (API not available)');
-        return; // Pretend it worked
-      } else {
-        console.error('Error deleting preferences:', error);
-        throw new Error('Failed to delete preferences. Please try again.');
-      }
-    }
-  },
-
-  async searchLocations(query: string): Promise<any[]> {
-    try {
-      const response = await fetch(`${ENDPOINTS.SEARCH_LOCATIONS}?q=${encodeURIComponent(query)}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`API Error: ${response.status} ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      return data.results || [];
-    } catch (error) {
-      if (isDevelopment) {
-        console.log('💡 Dev Mode: Using mock location search results');
-      } else {
-        console.error('Error searching locations:', error);
-      }
-      
-      // Return mock data for both development and production fallback
-      return [
-        { 
-          id: '1', 
-          name: `${query} - Downtown`, 
-          latitude: 37.7749 + Math.random() * 0.1, 
-          longitude: -122.4194 + Math.random() * 0.1,
-          type: 'neighborhood',
-          address: `${query} Downtown, City Center`
-        },
-        { 
-          id: '2', 
-          name: `${query} - Suburbs`, 
-          latitude: 37.7749 + Math.random() * 0.1, 
-          longitude: -122.4194 + Math.random() * 0.1,
-          type: 'area',
-          address: `${query} Suburbs, Residential Area`
-        },
-        { 
-          id: '3', 
-          name: `${query} - City Center`, 
-          latitude: 37.7749 + Math.random() * 0.1, 
-          longitude: -122.4194 + Math.random() * 0.1,
-          type: 'district',
-          address: `${query} City Center, Commercial District`
+      if (error) {
+        if (error.code === 'PGRST116') {
+          // No preferences found - this is normal for new users
+          console.log('📝 No preferences found for user, returning null');
+          return null;
         }
-      ];
+        
+        console.error('❌ Supabase error fetching preferences:', error);
+        throw new Error(`Failed to fetch preferences: ${error.message}`);
+      }
+
+      console.log('✅ Preferences loaded from Supabase successfully:');
+      console.log('📥 Supabase Data:', JSON.stringify(preferences, null, 2));
+      
+      return preferences;
+
+    } catch (error: any) {
+      console.error('❌ Error fetching preferences from Supabase:', error.message);
+      console.error('❌ Full error object:', error);
+      
+      // Return null on error - user can set new preferences
+      return null;
+    }
+  },
+
+  async savePreferences(preferences: Omit<PropertyPreferences, 'id' | 'user_id' | 'created_at' | 'updated_at'>): Promise<PropertyPreferences> {
+    try {
+      // Get current user from auth store
+      const currentUser = authStore.getCurrentUser();
+      
+      if (!currentUser?.id) {
+        console.error('🔒 No authenticated user found in auth store');
+        throw new Error('Please sign in before saving preferences');
+      }
+
+      console.log('💾 Saving preferences to Supabase for authenticated user:', currentUser.id);
+      console.log('📤 Supabase Request - Preferences data to save:', JSON.stringify(preferences, null, 2));
+
+      // Prepare data for Supabase - only include essential columns
+      const preferencesData = {
+        user_id: currentUser.id,
+        preferred_location: preferences.preferred_location,
+        location_type: preferences.location_type || [],
+        home_types: preferences.home_types || [],
+        min_price: preferences.min_price || 0,
+        max_price: preferences.max_price || 0,
+        bedrooms: preferences.bedrooms || 1,
+        bathrooms: preferences.bathrooms || 1,
+        amenities: preferences.amenities || [],
+        // Don't include latitude/longitude - they're optional
+      };
+
+      // Validate required fields
+      if (!preferencesData.preferred_location) {
+        throw new Error('Preferred location is required');
+      }
+
+      console.log('💾 Saving to Supabase with data:', JSON.stringify(preferencesData, null, 2));
+
+      // First, check if preferences already exist for this user
+      const { data: existingPreferences } = await supabase
+        .from('user_preferences')
+        .select('id')
+        .eq('user_id', currentUser.id)
+        .single();
+
+      let savedPreferences;
+      let error;
+
+      if (existingPreferences) {
+        // Update existing preferences
+        console.log('🔄 Updating existing preferences');
+        const result = await supabase
+          .from('user_preferences')
+          .update(preferencesData)
+          .eq('user_id', currentUser.id)
+          .select()
+          .single();
+        
+        savedPreferences = result.data;
+        error = result.error;
+      } else {
+        // Insert new preferences
+        console.log('➕ Creating new preferences');
+        const result = await supabase
+          .from('user_preferences')
+          .insert(preferencesData)
+          .select()
+          .single();
+        
+        savedPreferences = result.data;
+        error = result.error;
+      }
+
+      if (error) {
+        console.error('❌ Supabase error saving preferences:', error);
+        throw new Error(`Failed to save preferences: ${error.message}`);
+      }
+
+      console.log('✅ Preferences saved to Supabase successfully:');
+      console.log('📥 Supabase Response:', JSON.stringify(savedPreferences, null, 2));
+      
+      return savedPreferences;
+
+    } catch (error: any) {
+      console.error('❌ Error saving preferences to Supabase:', error.message);
+      console.error('❌ Full error object:', error);
+      
+      // Re-throw the error to be handled by the UI
+      throw error;
+    }
+  },
+
+  async checkPreferencesExist(): Promise<boolean> {
+    try {
+      // Get current user from auth store
+      const currentUser = authStore.getCurrentUser();
+      
+      if (!currentUser?.id) {
+        console.log('🔒 No authenticated user found for preferences check');
+        return false;
+      }
+
+      console.log('🔍 Checking if preferences exist in Supabase for user:', currentUser.id);
+
+      // Check if preferences exist in Supabase
+      const { data, error, count } = await supabase
+        .from('user_preferences')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', currentUser.id);
+
+      if (error) {
+        console.error('❌ Supabase error checking preferences existence:', error);
+        return false;
+      }
+
+      const exists = (count || 0) > 0;
+      console.log('✅ Supabase preferences exist check result:', exists);
+      return exists;
+
+    } catch (error: any) {
+      console.error('❌ Error checking preferences existence:', error.message);
+      return false;
     }
   }
 }; 

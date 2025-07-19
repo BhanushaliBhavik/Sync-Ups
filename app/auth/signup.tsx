@@ -1,14 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Link, router } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAppleSignIn, useAuthStore, useGoogleSignIn, useSignUp } from '../../hooks/useAuth';
 import { navigationService } from '../../services/navigationService';
 
 export default function SignUp() {
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -17,10 +16,47 @@ export default function SignUp() {
   const appleSignInMutation = useAppleSignIn();
   const authStore = useAuthStore();
 
+  // Watch for auth state changes after email confirmation
+  useEffect(() => {
+    const checkConfirmationAndNavigate = async () => {
+      console.log('🔄 Signup: Checking auth state for navigation...', {
+        hasUser: !!authStore.user,
+        isWaitingForConfirmation: authStore.isWaitingForConfirmation,
+        hasUnconfirmedUser: !!authStore.unconfirmedUser,
+        isLoading: authStore.isLoading
+      });
+      
+      // Only navigate if user was waiting for confirmation and now is confirmed
+      if (authStore.user && !authStore.isWaitingForConfirmation && !authStore.isLoading) {
+        console.log('🎉 User confirmed via email link! Auto-navigating to preferences...');
+        
+        // Ensure navigation state is set
+        await navigationService.setPreferencesScreenActive(authStore.user.id);
+        
+        // Navigate directly to preferences
+        router.replace('/property-preferences' as any);
+        
+      } else if (authStore.user && authStore.isWaitingForConfirmation) {
+        console.log('⏳ User exists but still waiting for confirmation');
+        
+      } else if (authStore.unconfirmedUser && !authStore.user) {
+        console.log('📧 User still unconfirmed, staying on signup');
+        
+      } else {
+        console.log('🔍 No navigation needed, current state is appropriate');
+      }
+    };
+
+    // Add a small delay to avoid race conditions
+    const timer = setTimeout(checkConfirmationAndNavigate, 300);
+    
+    return () => clearTimeout(timer);
+  }, [authStore.user, authStore.isWaitingForConfirmation, authStore.unconfirmedUser, authStore.isLoading]);
+
   const onSignUpPress = async () => {
     authStore.clearError(); // Clear any previous errors
     
-    if (!email.trim() || !password.trim() || !firstName.trim() || !lastName.trim()) {
+    if (!email.trim() || !password.trim() || !name.trim()) {
       Alert.alert('Error', 'Please fill in all fields');
       return;
     }
@@ -29,8 +65,7 @@ export default function SignUp() {
       const result = await signUpMutation.mutateAsync({ 
         email, 
         password, 
-        firstName, 
-        lastName 
+        name 
       });
       
       console.log('✅ Signup mutation successful');
@@ -60,6 +95,13 @@ export default function SignUp() {
         // Set navigation state for when they confirm
         await navigationService.setPreferencesScreenActive(authStore.unconfirmedUser.id);
         
+        // Don't show alert if user becomes confirmed immediately (race condition)
+        if (authStore.user) {
+          console.log('🎯 User confirmed during signup, navigating immediately');
+          router.push('/property-preferences' as any);
+          return;
+        }
+        
         Alert.alert(
           'Check Your Email! 📧',
           `We've sent a confirmation link to ${email}. Please check your email and click the link to complete your account setup.`,
@@ -67,8 +109,20 @@ export default function SignUp() {
             { 
               text: 'OK', 
               onPress: () => {
-                console.log('👤 User needs to confirm email, staying on signup');
-                // Stay on signup screen so they can see the confirmation message
+                console.log('👤 User acknowledged email confirmation, navigating to preferences');
+                // Clear the form data since signup is complete
+                setName('');
+                setEmail('');
+                setPassword('');
+                setShowPassword(false);
+                
+                // Clear any existing errors
+                authStore.clearError();
+                
+                // Navigate directly to preferences screen
+                router.push('/property-preferences' as any);
+                
+                console.log('🧹 Form cleared and navigated to preferences');
               }
             }
           ]
@@ -207,7 +261,34 @@ export default function SignUp() {
                   </Text>
                 </View>
               )}
+              
+              {/* Email Confirmed - Navigating */}
+              {authStore.user && !authStore.isWaitingForConfirmation && (
+                <View className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+                  <View className="flex-row items-center justify-center mb-2">
+                    <Ionicons name="checkmark-circle" size={20} color="#10B981" />
+                    <Text className="text-green-800 font-semibold ml-2">
+                      Email Confirmed! ✅
+                    </Text>
+                  </View>
+                  <Text className="text-green-700 text-sm text-center">
+                    Taking you to set up your preferences...
+                  </Text>
+                </View>
+              )}
             </View>
+
+            {/* Email Confirmation Banner */}
+            {authStore.isWaitingForConfirmation && (
+              <View className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+                <View className="flex-row items-center justify-center">
+                  <Ionicons name="mail" size={16} color="#2563EB" />
+                  <Text className="text-blue-800 text-sm text-center ml-2">
+                    📧 Please check your email to confirm your account. After confirmation, you'll be ready to set your preferences!
+                  </Text>
+                </View>
+              </View>
+            )}
 
             {/* Error Message */}
             {authStore.error && (
@@ -254,42 +335,23 @@ export default function SignUp() {
 
             {/* Email/Password Form */}
             <View className="mb-6">
-              {/* Name Fields */}
-              <View className="flex-row gap-4 mb-5">
-                <View className="flex-1">
-                  <Text className="text-text-primary font-semibold mb-3">First Name</Text>
-                  <TextInput
-                    className="w-full p-4 border border-border rounded-xl bg-surface text-text-primary text-base"
-                    placeholder="First name"
-                    placeholderTextColor="#6B7280"
-                    value={firstName}
-                    onChangeText={(text) => {
-                      setFirstName(text);
-                      if (authStore.error) authStore.clearError();
-                    }}
-                    autoCapitalize="words"
-                    autoCorrect={false}
-                    editable={!isLoading}
-                    returnKeyType="next"
-                  />
-                </View>
-                <View className="flex-1">
-                  <Text className="text-text-primary font-semibold mb-3">Last Name</Text>
-                  <TextInput
-                    className="w-full p-4 border border-border rounded-xl bg-surface text-text-primary text-base"
-                    placeholder="Last name"
-                    placeholderTextColor="#6B7280"
-                    value={lastName}
-                    onChangeText={(text) => {
-                      setLastName(text);
-                      if (authStore.error) authStore.clearError();
-                    }}
-                    autoCapitalize="words"
-                    autoCorrect={false}
-                    editable={!isLoading}
-                    returnKeyType="next"
-                  />
-                </View>
+              {/* Name Field */}
+              <View className="mb-5">
+                <Text className="text-text-primary font-semibold mb-3">Full Name</Text>
+                <TextInput
+                  className="w-full p-4 border border-border rounded-xl bg-surface text-text-primary text-base"
+                  placeholder="Enter your full name"
+                  placeholderTextColor="#6B7280"
+                  value={name}
+                  onChangeText={(text) => {
+                    setName(text);
+                    if (authStore.error) authStore.clearError();
+                  }}
+                  autoCapitalize="words"
+                  autoCorrect={false}
+                  editable={!isLoading}
+                  returnKeyType="next"
+                />
               </View>
 
               {/* Email */}
@@ -318,7 +380,7 @@ export default function SignUp() {
                 <View className="relative">
                   <TextInput
                     className="w-full p-4 pr-14 border border-border rounded-xl bg-surface text-text-primary text-base"
-                    placeholder="Create a password"
+                    placeholder="Enter your password"
                     placeholderTextColor="#6B7280"
                     value={password}
                     onChangeText={(text) => {
@@ -329,7 +391,7 @@ export default function SignUp() {
                     editable={!isLoading}
                     returnKeyType="go"
                     onSubmitEditing={() => {
-                      if (!isLoading && email.trim() && password.trim() && firstName.trim() && lastName.trim()) {
+                      if (!isLoading && email.trim() && password.trim() && name.trim()) {
                         onSignUpPress();
                       }
                     }}

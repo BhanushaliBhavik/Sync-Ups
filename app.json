@@ -53,10 +53,12 @@
       "typedRoutes": true
     },
     "extra": {
-      "router": {},
       "eas": {
-        "projectId": "11ba34e0-5170-4645-b14e-a830de6fb0c1"
+        "projectId": "your-eas-project-id"
       }
+    },
+    "env": {
+      "EXPO_PUBLIC_API_URL": "https://your-domain.com"
     },
     "owner": "dimpal-suthar"
   }
