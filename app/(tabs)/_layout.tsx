@@ -19,6 +19,16 @@ export default function TabLayout() {
           fontWeight: 'bold',
         },
       }}>
+         <Tabs.Screen
+        name="home"
+        options={{
+          title: 'Home',
+          headerShown: false,
+          tabBarIcon: ({ color, size }) => (
+            <FontAwesome name="home" size={size} color={color} />
+          ),
+        }}
+      />
       <Tabs.Screen
         name="search"
         options={{
