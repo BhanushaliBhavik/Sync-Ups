@@ -2,26 +2,32 @@ import { Stack } from 'expo-router';
 
 export default function AuthLayout() {
   return (
-    <Stack>
+    <Stack
+      screenOptions={{
+        headerStyle: {
+          backgroundColor: '#FFFFFF',
+        },
+        headerTitleStyle: {
+          fontWeight: 'bold',
+          fontSize: 18,
+        },
+        headerTintColor: '#000000',
+      }}
+    >
       <Stack.Screen 
         name="signin" 
         options={{ 
           title: 'Sign In',
-          headerShown: false 
+          headerShown: true,
+          headerBackTitle: 'Back'
         }} 
       />
       <Stack.Screen 
         name="signup" 
         options={{ 
           title: 'Sign Up',
-          headerShown: false 
-        }} 
-      />
-      <Stack.Screen 
-        name="callback" 
-        options={{ 
-          title: 'Authenticating',
-          headerShown: false 
+          headerShown: true,
+          headerBackTitle: 'Back'
         }} 
       />
     </Stack>

@@ -91,84 +91,84 @@ export default function ProfileScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
-      <View className="flex-1 px-6 py-8">
+    <SafeAreaView className="flex-1 bg-background">
+      <View className="flex-1 px-6 py-4">
         {/* Header */}
-        <View className="mb-12">
-          <Text className="text-3xl font-bold text-gray-900 mb-2">
+        <View className="mb-8">
+          <Text className="text-3xl font-bold text-text-primary mb-2">
             Profile
           </Text>
-          <Text className="text-gray-600 text-lg">
+          <Text className="text-text-secondary text-lg">
             Manage your account settings
           </Text>
         </View>
 
         {/* User Info */}
         {user && (
-          <View className="mb-8 p-6 bg-gray-50 rounded-lg">
-            <Text className="text-lg font-semibold text-gray-900 mb-2">
+          <View className="mb-8 p-6 bg-surface rounded-xl border border-border shadow-sm">
+            <Text className="text-lg font-semibold text-text-primary mb-2">
               {user.firstName} {user.lastName}
             </Text>
-            <Text className="text-gray-600 mb-2">
+            <Text className="text-text-secondary mb-2">
               {user.email}
             </Text>
-            <Text className="text-sm text-gray-500">
+            <Text className="text-sm text-text-secondary">
               Member since {new Date(user.createdAt).toLocaleDateString()}
             </Text>
           </View>
         )}
 
         {/* Profile Options */}
-        <View className="space-y-4 mb-8">
-          <TouchableOpacity className="p-4 border border-gray-300 rounded-lg flex-row items-center">
+        <View className="space-y-3 mb-8">
+          <TouchableOpacity className="p-4 bg-surface border border-border rounded-xl flex-row items-center shadow-sm">
             <Ionicons name="person-outline" size={20} color="#6B7280" />
-            <Text className="text-gray-700 font-medium ml-3">Edit Profile</Text>
+            <Text className="text-text-primary font-medium ml-3">Edit Profile</Text>
           </TouchableOpacity>
           
           {/* Property Preferences */}
           {hasPreferences !== null && (
             <TouchableOpacity
-              className="p-4 border border-gray-300 rounded-lg flex-row items-center justify-between"
+              className="p-4 bg-surface border border-border rounded-xl flex-row items-center justify-between shadow-sm"
               onPress={handleManagePreferences}
             >
               <View className="flex-row items-center">
-                <Ionicons name="home-outline" size={20} color="#6B7280" />
-                <Text className="text-gray-700 font-medium ml-3">
+                <Ionicons name="home-outline" size={20} color="#007C91" />
+                <Text className="text-text-primary font-medium ml-3">
                   Property Preferences
                 </Text>
               </View>
               <View className="flex-row items-center">
                 {hasPreferences && (
-                  <View className="w-2 h-2 bg-green-500 rounded-full mr-2" />
+                  <View className="w-2 h-2 bg-success rounded-full mr-2" />
                 )}
-                <Ionicons name="chevron-forward" size={16} color="#9CA3AF" />
+                <Ionicons name="chevron-forward" size={16} color="#6B7280" />
               </View>
             </TouchableOpacity>
           )}
           
-          <TouchableOpacity className="p-4 border border-gray-300 rounded-lg flex-row items-center">
+          <TouchableOpacity className="p-4 bg-surface border border-border rounded-xl flex-row items-center shadow-sm">
             <Ionicons name="heart-outline" size={20} color="#6B7280" />
-            <Text className="text-gray-700 font-medium ml-3">Saved Properties</Text>
+            <Text className="text-text-primary font-medium ml-3">Saved Properties</Text>
           </TouchableOpacity>
           
-          <TouchableOpacity className="p-4 border border-gray-300 rounded-lg flex-row items-center">
+          <TouchableOpacity className="p-4 bg-surface border border-border rounded-xl flex-row items-center shadow-sm">
             <Ionicons name="time-outline" size={20} color="#6B7280" />
-            <Text className="text-gray-700 font-medium ml-3">Search History</Text>
+            <Text className="text-text-primary font-medium ml-3">Search History</Text>
           </TouchableOpacity>
           
-          <TouchableOpacity className="p-4 border border-gray-300 rounded-lg flex-row items-center">
+          <TouchableOpacity className="p-4 bg-surface border border-border rounded-xl flex-row items-center shadow-sm">
             <Ionicons name="notifications-outline" size={20} color="#6B7280" />
-            <Text className="text-gray-700 font-medium ml-3">Notification Settings</Text>
+            <Text className="text-text-primary font-medium ml-3">Notification Settings</Text>
           </TouchableOpacity>
         </View>
 
         {/* Sign Out Button */}
         <TouchableOpacity
-          className={`w-full p-4 bg-red-600 rounded-lg ${signOutMutation.isPending ? 'opacity-50' : ''}`}
+          className={`w-full p-4 bg-red-600 rounded-xl shadow-sm ${signOutMutation.isPending ? 'opacity-50' : ''}`}
           onPress={handleSignOut}
           disabled={signOutMutation.isPending}
         >
-          <Text className="text-white text-center font-semibold text-lg">
+          <Text className="text-surface text-center font-semibold text-lg">
             {signOutMutation.isPending ? 'Signing Out...' : 'Sign Out'}
           </Text>
         </TouchableOpacity>
