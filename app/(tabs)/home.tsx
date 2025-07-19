@@ -1,7 +1,9 @@
 import { Ionicons } from '@expo/vector-icons'
-import React from 'react'
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
+import React, { useEffect } from 'react'
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { useProperties } from '../../hooks/useProperties'
+import { formatLocation, formatPrice, formatSpecs } from '../../utils/propertyUtils'
 
 // Property Card Component
 const PropertyCard = ({ 
@@ -79,8 +81,66 @@ const ActionButton = ({ title, isActive, onPress }: {
   </TouchableOpacity>
 )
 
+// Loading Component
+const LoadingView = () => (
+  <View style={styles.loadingContainer}>
+    <ActivityIndicator size="large" color="#1F2937" />
+    <Text style={styles.loadingText}>Loading properties...</Text>
+  </View>
+)
+
+// Error Component
+const ErrorView = ({ error, onRetry }: { error: string; onRetry: () => void }) => (
+  <View style={styles.errorContainer}>
+    <Ionicons name="alert-circle-outline" size={48} color="#EF4444" />
+    <Text style={styles.errorText}>{error}</Text>
+    <TouchableOpacity style={styles.retryButton} onPress={onRetry}>
+      <Text style={styles.retryButtonText}>Try Again</Text>
+    </TouchableOpacity>
+  </View>
+)
+
 export default function Home() {
   const [activeTab, setActiveTab] = React.useState('Buy')
+  const { 
+    properties, 
+    loading, 
+    error, 
+    fetchProperties, 
+    getPropertiesByType,
+    getPropertiesByPriceRange 
+  } = useProperties()
+
+  useEffect(() => {
+    fetchProperties()
+  }, [])
+
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab)
+    // You can add different filtering logic based on the tab
+    if (tab === 'Rent') {
+      // Filter for rental properties
+      getPropertiesByType('apartment')
+    } else if (tab === 'Plot') {
+      // Filter for land/plot properties
+      getPropertiesByType('land')
+    } else {
+      // Default: fetch all properties
+      fetchProperties()
+    }
+  }
+
+  if (loading && properties.length === 0) {
+    return <LoadingView />
+  }
+
+  if (error && properties.length === 0) {
+    return <ErrorView error={error} onRetry={fetchProperties} />
+  }
+
+  // Get top match (first property) and trending properties (next 2)
+  const topMatch = properties[0]
+  const trendingProperties = properties.slice(1, 3)
 
   return (
     <SafeAreaView style={styles.container}>
@@ -99,14 +159,14 @@ export default function Home() {
               </View>
             </View>
             
-            {/* <View style={styles.navigationIcons}>
+            <View style={styles.navigationIcons}>
               <TouchableOpacity style={styles.iconButton}>
                 <Ionicons name="notifications-outline" size={24} color="#374151" />
               </TouchableOpacity>
               <TouchableOpacity style={styles.iconButton}>
                 <Ionicons name="menu-outline" size={24} color="#374151" />
               </TouchableOpacity>
-            </View> */}
+            </View>
           </View>
 
           {/* Location Selector */}
@@ -125,66 +185,75 @@ export default function Home() {
             <ActionButton 
               title="Buy" 
               isActive={activeTab === 'Buy'} 
-              onPress={() => setActiveTab('Buy')} 
+              onPress={() => handleTabChange('Buy')} 
             />
             <ActionButton 
               title="Rent" 
               isActive={activeTab === 'Rent'} 
-              onPress={() => setActiveTab('Rent')} 
+              onPress={() => handleTabChange('Rent')} 
             />
             <ActionButton 
               title="Plot" 
               isActive={activeTab === 'Plot'} 
-              onPress={() => setActiveTab('Plot')} 
+              onPress={() => handleTabChange('Plot')} 
             />
           </View>
         </View>
 
         {/* Top Match Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Top Match for You</Text>
-          <Text style={styles.sectionSubtitle}>Looks like something you'll love</Text>
-          
-          <PropertyCard
-            title="Modern Apartment"
-            location="Mission District, San Francisco"
-            specs="3 bed 2 bath 1,200 sqft"
-            price="$850K"
-            isTopMatch={true}
-            showViewDetails={true}
-            matchPercentage={90}
-          />
-        </View>
+        {topMatch && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Top Match for You</Text>
+            <Text style={styles.sectionSubtitle}>Looks like something you'll love</Text>
+            
+            <PropertyCard
+              title={topMatch.title}
+              location={formatLocation(topMatch)}
+              specs={formatSpecs(topMatch)}
+              price={formatPrice(topMatch.price)}
+              isTopMatch={true}
+              showViewDetails={true}
+              matchPercentage={90}
+            />
+          </View>
+        )}
 
         {/* Trending Homes Section */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Trending Homes Nearby</Text>
-            <TouchableOpacity>
-              <Text style={styles.seeAllText}>See All</Text>
-            </TouchableOpacity>
-          </View>
-          
-          <View style={styles.trendingList}>
-            <View style={styles.propertyCardWrapper}>
-              <PropertyCard
-                title="Luxury Condo"
-                location="SOMA, San Francisco"
-                specs="2 bed 1 bath 900 sqft"
-                price="$720K"
-              />
+        {trendingProperties.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Trending Homes Nearby</Text>
+              <TouchableOpacity>
+                <Text style={styles.seeAllText}>See All</Text>
+              </TouchableOpacity>
             </View>
             
-            <View style={styles.propertyCardWrapper}>
-              <PropertyCard
-                title="Victorian House"
-                location="Castro, San Francisco"
-                specs="4 bed 3 bath 1,800 sqft"
-                price="$1.2M"
-              />
+            <View style={styles.trendingList}>
+              {trendingProperties.map((property, index) => (
+                <View key={property.id} style={styles.propertyCardWrapper}>
+                  <PropertyCard
+                    title={property.title}
+                    location={formatLocation(property)}
+                    specs={formatSpecs(property)}
+                    price={formatPrice(property.price)}
+                  />
+                </View>
+              ))}
             </View>
           </View>
-        </View>
+        )}
+
+        {/* No Properties Message */}
+        {properties.length === 0 && !loading && (
+          <View style={styles.emptyContainer}>
+            <Ionicons name="home-outline" size={64} color="#9CA3AF" />
+            <Text style={styles.emptyTitle}>No properties found</Text>
+            <Text style={styles.emptySubtitle}>Try adjusting your filters or search criteria</Text>
+            <TouchableOpacity style={styles.refreshButton} onPress={fetchProperties}>
+              <Text style={styles.refreshButtonText}>Refresh</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   )
@@ -236,6 +305,7 @@ const styles = StyleSheet.create({
   },
   iconButton: {
     padding: 4,
+    marginLeft: 16,
   },
   locationSection: {
     flexDirection: 'row',
@@ -408,5 +478,72 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '500',
     fontSize: 14,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#6B7280',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 32,
+  },
+  errorText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  retryButton: {
+    backgroundColor: '#1F2937',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 32,
+    paddingVertical: 64,
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#111827',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptySubtitle: {
+    fontSize: 16,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  refreshButton: {
+    backgroundColor: '#1F2937',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  refreshButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '500',
   },
 })

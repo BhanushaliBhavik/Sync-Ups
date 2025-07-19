@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useState } from 'react';
-import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useProperties } from '../../hooks/useProperties';
 
 // Property Card Component
 const PropertyCard = ({ 
@@ -78,24 +79,118 @@ const FilterButton = ({
   </TouchableOpacity>
 );
 
+// Loading Component
+const LoadingView = () => (
+  <View style={styles.loadingContainer}>
+    <ActivityIndicator size="large" color="#1F2937" />
+    <Text style={styles.loadingText}>Searching properties...</Text>
+  </View>
+);
+
 export default function SearchScreen() {
   const [activeFilter, setActiveFilter] = useState('Filters');
   const [searchText, setSearchText] = useState('');
+  const [debouncedSearchText, setDebouncedSearchText] = useState('');
+  
+  const { 
+    properties, 
+    loading, 
+    error, 
+    searchProperties, 
+    getPropertiesByType,
+    getPropertiesByPriceRange,
+    getPropertiesBySpecs,
+    fetchProperties 
+  } = useProperties();
+
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchText(searchText);
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [searchText]);
+
+  // Search when debounced text changes
+  useEffect(() => {
+    if (debouncedSearchText.trim()) {
+      searchProperties(debouncedSearchText);
+    } else {
+      fetchProperties();
+    }
+  }, [debouncedSearchText]);
+
+  const handleFilterChange = (filter: string) => {
+    setActiveFilter(filter);
+    
+    // Apply different filters based on selection
+    switch (filter) {
+      case 'Price':
+        // Show properties in a specific price range
+        getPropertiesByPriceRange(200000, 500000);
+        break;
+      case 'Type':
+        // Show apartments
+        getPropertiesByType('apartment');
+        break;
+      case 'BHK':
+        // Show 2+ bedroom properties
+        getPropertiesBySpecs(2);
+        break;
+      case 'Area':
+        // Show properties with specific area (you can customize this)
+        fetchProperties();
+        break;
+      case 'AI':
+        // AI-powered recommendations (you can implement this)
+        fetchProperties();
+        break;
+      default:
+        fetchProperties();
+    }
+  };
+
+  const formatPrice = (price: number | null) => {
+    if (!price) return 'Price on request';
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(price);
+  };
+
+  const formatPropertyType = (property: any) => {
+    const specs = [];
+    if (property.bedrooms) specs.push(`${property.bedrooms} BHK`);
+    specs.push(property.property_type?.charAt(0).toUpperCase() + property.property_type?.slice(1) || 'Property');
+    return specs.join(' ');
+  };
+
+  const formatLocation = (property: any) => {
+    const location = [];
+    if (property.city) location.push(property.city);
+    if (property.state) location.push(property.state);
+    return location.join(', ');
+  };
+
+  const formatSize = (property: any) => {
+    if (property.square_feet) {
+      return `${property.square_feet.toLocaleString()} sq ft`;
+    }
+    return 'Size not specified';
+  };
+
+  const calculateDistance = (property: any) => {
+    // Mock distance calculation - in real app, you'd use actual coordinates
+    const distances = ['0.8 km', '1.2 km', '2.5 km', '3.8 km', '5.1 km'];
+    return distances[Math.floor(Math.random() * distances.length)];
+  };
 
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {/* Header */}
-        {/* <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color="#374151" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Property Search</Text>
-          <TouchableOpacity style={styles.favoriteHeaderButton}>
-            <Ionicons name="heart-outline" size={24} color="#374151" />
-          </TouchableOpacity>
-        </View> */}
-
         {/* Search Bar */}
         <View style={styles.searchSection}>
           <View style={styles.searchBar}>
@@ -113,18 +208,6 @@ export default function SearchScreen() {
           </View>
         </View>
 
-        {/* Image Search Section */}
-        {/* <View style={styles.imageSearchSection}>
-          <View style={styles.imageSearchHeader}>
-            <Text style={styles.imageSearchTitle}>Image Search</Text>
-            <Ionicons name="camera" size={20} color="#6B7280" />
-          </View>
-          <TouchableOpacity style={styles.imageUploadArea}>
-            <Ionicons name="image" size={40} color="#9CA3AF" />
-            <Text style={styles.uploadText}>Upload desired interior</Text>
-          </TouchableOpacity>
-        </View> */}
-
         {/* Filter and Sort Section */}
         <View style={styles.filterSection}>
           <ScrollView 
@@ -135,38 +218,38 @@ export default function SearchScreen() {
             <FilterButton 
               title="Filters" 
               isActive={activeFilter === 'Filters'} 
-              onPress={() => setActiveFilter('Filters')}
+              onPress={() => handleFilterChange('Filters')}
               showIcon={true}
             />
             <FilterButton 
               title="Price" 
               isActive={activeFilter === 'Price'} 
-              onPress={() => setActiveFilter('Price')}
+              onPress={() => handleFilterChange('Price')}
             />
             <FilterButton 
               title="Type" 
               isActive={activeFilter === 'Type'} 
-              onPress={() => setActiveFilter('Type')}
+              onPress={() => handleFilterChange('Type')}
             />
             <FilterButton 
               title="BHK" 
               isActive={activeFilter === 'BHK'} 
-              onPress={() => setActiveFilter('BHK')}
+              onPress={() => handleFilterChange('BHK')}
             />
             <FilterButton 
               title="Area" 
               isActive={activeFilter === 'Area'} 
-              onPress={() => setActiveFilter('Area')}
+              onPress={() => handleFilterChange('Area')}
             />
             <FilterButton 
               title="AI" 
               isActive={activeFilter === 'AI'} 
-              onPress={() => setActiveFilter('AI')}
+              onPress={() => handleFilterChange('AI')}
             />
           </ScrollView>
           
           <View style={styles.resultsSection}>
-            <Text style={styles.resultsCount}>248 properties found</Text>
+            <Text style={styles.resultsCount}>{properties.length} properties found</Text>
             <View style={styles.sortSection}>
               <Text style={styles.sortLabel}>Sort by:</Text>
               <TouchableOpacity style={styles.sortDropdown}>
@@ -177,40 +260,49 @@ export default function SearchScreen() {
           </View>
         </View>
 
+        {/* Loading State */}
+        {loading && (
+          <LoadingView />
+        )}
+
         {/* Property Listings */}
-        <View style={styles.propertyList}>
-          <PropertyCard
-            price="₹2.5 Cr"
-            type="3 BHK Apartment"
-            location="Bandra West, Mumbai"
-            size="1,200 sq ft"
-            distance="2.5 km"
-          />
-          
-          <PropertyCard
-            price="₹1.8 Cr"
-            type="2 BHK Apartment"
-            location="Andheri East, Mumbai"
-            size="950 sq ft"
-            distance="1.2 km"
-          />
-          
-          <PropertyCard
-            price="₹3.2 Cr"
-            type="4 BHK Villa"
-            location="Juhu, Mumbai"
-            size="2,100 sq ft"
-            distance="3.8 km"
-          />
-          
-          <PropertyCard
-            price="₹1.5 Cr"
-            type="1 BHK Apartment"
-            location="Powai, Mumbai"
-            size="650 sq ft"
-            distance="0.8 km"
-          />
-        </View>
+        {!loading && properties.length > 0 && (
+          <View style={styles.propertyList}>
+            {properties.map((property) => (
+              <PropertyCard
+                key={property.id}
+                price={formatPrice(property.price)}
+                type={formatPropertyType(property)}
+                location={formatLocation(property)}
+                size={formatSize(property)}
+                distance={calculateDistance(property)}
+              />
+            ))}
+          </View>
+        )}
+
+        {/* No Results */}
+        {!loading && properties.length === 0 && searchText && (
+          <View style={styles.emptyContainer}>
+            <Ionicons name="search-outline" size={64} color="#9CA3AF" />
+            <Text style={styles.emptyTitle}>No properties found</Text>
+            <Text style={styles.emptySubtitle}>Try adjusting your search terms or filters</Text>
+            <TouchableOpacity style={styles.refreshButton} onPress={fetchProperties}>
+              <Text style={styles.refreshButtonText}>Show All Properties</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Error State */}
+        {error && (
+          <View style={styles.errorContainer}>
+            <Ionicons name="alert-circle-outline" size={48} color="#EF4444" />
+            <Text style={styles.errorText}>{error}</Text>
+            <TouchableOpacity style={styles.retryButton} onPress={fetchProperties}>
+              <Text style={styles.retryButtonText}>Try Again</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -223,24 +315,6 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  backButton: {
-    padding: 4,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#111827',
-  },
-  favoriteHeaderButton: {
-    padding: 4,
   },
   searchSection: {
     paddingHorizontal: 16,
@@ -266,35 +340,6 @@ const styles = StyleSheet.create({
   },
   voiceButton: {
     padding: 4,
-  },
-  imageSearchSection: {
-    paddingHorizontal: 16,
-    marginBottom: 20,
-  },
-  imageSearchHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  imageSearchTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
-  },
-  imageUploadArea: {
-    borderWidth: 2,
-    borderColor: '#D1D5DB',
-    borderStyle: 'dashed',
-    borderRadius: 12,
-    paddingVertical: 40,
-    alignItems: 'center',
-    backgroundColor: '#F9FAFB',
-  },
-  uploadText: {
-    marginTop: 12,
-    fontSize: 14,
-    color: '#6B7280',
   },
   filterSection: {
     paddingHorizontal: 16,
@@ -360,6 +405,17 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#374151',
     marginRight: 4,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 64,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#6B7280',
   },
   propertyList: {
     paddingHorizontal: 16,
@@ -444,5 +500,61 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#6B7280',
     marginLeft: 4,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 32,
+    paddingVertical: 64,
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#111827',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptySubtitle: {
+    fontSize: 16,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  refreshButton: {
+    backgroundColor: '#1F2937',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  refreshButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 32,
+    paddingVertical: 64,
+  },
+  errorText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  retryButton: {
+    backgroundColor: '#1F2937',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '500',
   },
 });
