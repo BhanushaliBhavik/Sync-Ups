@@ -1,28 +1,55 @@
 import { useWishlistStatus } from '@/hooks/useWishlist';
 import { Ionicons } from '@expo/vector-icons';
+import * as Linking from 'expo-linking';
 import { useRouter } from 'expo-router';
 import React from 'react';
-import { Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Text, TouchableOpacity, View } from 'react-native';
 
 interface PropertyCardProps {
   property: {
     id: string;
     title: string;
-    price: number | null;
+    description?: string;
+    price: number;
+    property_type?: 'house' | 'apartment' | 'condo' | 'townhouse' | 'land' | 'commercial';
+    status?: 'active' | 'sold' | 'pending' | 'inactive';
     bedrooms?: number;
     bathrooms?: number;
     square_feet?: number;
+    lot_size?: number;
+    year_built?: number;
     address?: string;
     city?: string;
+    state?: string;
+    zip_code?: string;
+    latitude?: number;
+    longitude?: number;
+    agent_id?: string;
+    seller_id?: string;
+    created_at?: string;
+    updated_at?: string;
     property_images?: Array<{
+      id: string;
+      property_id: string;
       image_url: string;
-      is_primary?: boolean;
+      caption?: string;
+      is_primary: boolean;
+      order_index: number;
+      created_at: string;
     }>;
+    agent?: {
+      id: string;
+      name?: string;
+      email: string;
+      phone?: string;
+      profile_image_url?: string;
+    };
   };
   onViewDetails?: (propertyId: string) => void;
+  onWishlistChange?: () => void; // Callback when wishlist changes
 }
 
-export default function PropertyCard({ property, onViewDetails }: PropertyCardProps) {
+export default function PropertyCard({ property, onViewDetails, onWishlistChange }: PropertyCardProps) {
   const router = useRouter();
   
   // Use wishlist status hook
@@ -31,10 +58,13 @@ export default function PropertyCard({ property, onViewDetails }: PropertyCardPr
     loading: wishlistLoading, 
     addToWishlist, 
     removeFromWishlist 
-  } = useWishlistStatus({ propertyId: property.id });
+  } = useWishlistStatus({ 
+    propertyId: property.id,
+    onWishlistChange 
+  });
 
-  const formatPrice = (price: number | null) => {
-    if (!price) return 'Price on request';
+  const formatPrice = (price: number) => {
+    if (!price || price <= 0) return 'Price on request';
     if (price >= 1000000) {
       return `$${(price / 1000000).toFixed(1)}M`;
     } else if (price >= 1000) {
@@ -60,12 +90,18 @@ export default function PropertyCard({ property, onViewDetails }: PropertyCardPr
     const parts = [];
     if (property.address) parts.push(property.address);
     if (property.city) parts.push(property.city);
+    if (property.state) parts.push(property.state);
     return parts.join(', ');
   };
 
   const getPrimaryImage = () => {
     const primaryImage = property.property_images?.find(img => img.is_primary);
     return primaryImage?.image_url || property.property_images?.[0]?.image_url || null;
+  };
+
+  const getPropertyTypeLabel = () => {
+    if (!property.property_type) return 'Property';
+    return property.property_type.charAt(0).toUpperCase() + property.property_type.slice(1);
   };
 
   const handleWishlistToggle = async () => {
@@ -88,6 +124,39 @@ export default function PropertyCard({ property, onViewDetails }: PropertyCardPr
         pathname: '/PropertyDetailScreen',
         params: { id: property.id }
       });
+    }
+  };
+
+  const handleOpenMap = async () => {
+    if (!property.latitude || !property.longitude) {
+      Alert.alert(
+        'Location Not Available',
+        'This property does not have location coordinates available.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
+    try {
+      const url = `https://www.google.com/maps/search/?api=1&query=${property.latitude},${property.longitude}`;
+      const supported = await Linking.canOpenURL(url);
+      
+      if (supported) {
+        await Linking.openURL(url);
+      } else {
+        Alert.alert(
+          'Cannot Open Maps',
+          'Google Maps is not available on this device.',
+          [{ text: 'OK' }]
+        );
+      }
+    } catch (error) {
+      console.error('Error opening map:', error);
+      Alert.alert(
+        'Error',
+        'Failed to open Google Maps. Please try again.',
+        [{ text: 'OK' }]
+      );
     }
   };
 
@@ -133,7 +202,7 @@ export default function PropertyCard({ property, onViewDetails }: PropertyCardPr
 
         {/* Property Type Badge */}
         <View className="absolute top-4 left-4 bg-primary bg-opacity-90 px-3 py-1 rounded-full">
-          <Text className="text-white text-xs font-semibold">FOR SALE</Text>
+          <Text className="text-white text-xs font-semibold">{getPropertyTypeLabel().toUpperCase()}</Text>
         </View>
       </View>
 
@@ -183,12 +252,23 @@ export default function PropertyCard({ property, onViewDetails }: PropertyCardPr
 
         {/* View Details Button */}
         <TouchableOpacity 
-          className="bg-primary py-4 rounded-2xl shadow-lg"
+          className="bg-primary py-4 rounded-2xl shadow-lg mb-3"
           onPress={handleViewDetails}
         >
           <View className="flex-row justify-center items-center">
             <Text className="text-white font-bold text-base mr-2">View Details</Text>
             <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
+          </View>
+        </TouchableOpacity>
+
+        {/* Nearby Map Button */}
+        <TouchableOpacity 
+          className="bg-gray-100 py-3 rounded-2xl border border-gray-200"
+          onPress={handleOpenMap}
+        >
+          <View className="flex-row justify-center items-center">
+            <Ionicons name="map-outline" size={18} color="#007C91" />
+            <Text className="text-primary font-semibold text-base ml-2">Nearby Map</Text>
           </View>
         </TouchableOpacity>
       </View>

@@ -42,6 +42,7 @@ export default function TabLayout() {
         name="wishlist"
         options={{
           title: 'Wishlist',
+          headerShown: false,
           tabBarIcon: ({ color, size }) => (
             <FontAwesome name="heart" size={size} color={color} />
           ),

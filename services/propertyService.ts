@@ -1,21 +1,48 @@
-// Property interface based on API response
+import { supabase } from '@/lib/supabase';
+
+// Property interface based on Supabase database schema
 export interface Property {
   id: string;
   title: string;
-  city: string;
-  address: string;
+  description?: string;
   price: number;
-  bedrooms: number;
-  bathrooms: number;
-  property_images: Array<{
-    image_url: string;
-    is_primary: boolean;
-  }>;
-  agent: {
-    name: string;
-    phone: string;
-    email: string;
-  };
+  property_type: 'house' | 'apartment' | 'condo' | 'townhouse' | 'land' | 'commercial';
+  status: 'active' | 'sold' | 'pending' | 'inactive';
+  bedrooms?: number;
+  bathrooms?: number;
+  square_feet?: number;
+  lot_size?: number;
+  year_built?: number;
+  address?: string;
+  city?: string;
+  state?: string;
+  zip_code?: string;
+  latitude?: number;
+  longitude?: number;
+  agent_id?: string;
+  seller_id?: string;
+  created_at: string;
+  updated_at: string;
+  property_images?: PropertyImage[];
+  agent?: Agent;
+}
+
+export interface PropertyImage {
+  id: string;
+  property_id: string;
+  image_url: string;
+  caption?: string;
+  is_primary: boolean;
+  order_index: number;
+  created_at: string;
+}
+
+export interface Agent {
+  id: string;
+  name?: string;
+  email: string;
+  phone?: string;
+  profile_image_url?: string;
 }
 
 export interface PropertyResponse {
@@ -33,206 +60,344 @@ export interface PropertyFilters {
   max_price?: number;
   bedrooms?: number;
   bathrooms?: number;
+  property_type?: string;
 }
 
 class PropertyService {
-  private baseUrl = 'https://home-hub-ten.vercel.app';
-
+  // Fetch all properties with optional filters
   async fetchProperties(filters?: PropertyFilters): Promise<Property[]> {
     try {
-      let url = `${this.baseUrl}/api/properties`;
-      
-      // Add query parameters if filters are provided
+      let query = supabase
+        .from('properties')
+        .select(`
+          *,
+          property_images (*),
+          agent:users!properties_agent_id_fkey (
+            id,
+            name,
+            email,
+            phone,
+            profile_image_url
+          )
+        `)
+        .eq('status', 'active')
+        .order('created_at', { ascending: false });
+
+      // Apply filters
       if (filters) {
-        const params = new URLSearchParams();
-        Object.entries(filters).forEach(([key, value]) => {
-          if (value !== undefined && value !== null) {
-            params.append(key, value.toString());
-          }
-        });
-        if (params.toString()) {
-          url += `?${params.toString()}`;
+        if (filters.city) {
+          query = query.ilike('city', `%${filters.city}%`);
+        }
+        if (filters.min_price) {
+          query = query.gte('price', filters.min_price);
+        }
+        if (filters.max_price) {
+          query = query.lte('price', filters.max_price);
+        }
+        if (filters.bedrooms) {
+          query = query.gte('bedrooms', filters.bedrooms);
+        }
+        if (filters.bathrooms) {
+          query = query.gte('bathrooms', filters.bathrooms);
+        }
+        if (filters.property_type) {
+          query = query.eq('property_type', filters.property_type);
         }
       }
 
-      console.log('Fetching properties from:', url);
-      const response = await fetch(url);
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      const { data, error } = await query;
+
+      if (error) {
+        console.error('Error fetching properties:', error);
+        throw new Error(`Database error: ${error.message}`);
       }
-      
-      // Check if response is JSON
-      const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        console.error('Response is not JSON:', contentType);
-        const responseText = await response.text();
-        console.error('Response text:', responseText);
-        throw new Error('Invalid response format: expected JSON');
-      }
-      
-      const data: PropertyResponse = await response.json();
-      console.log('Successfully fetched properties:', data.properties?.length || 0);
-      return data.properties || [];
+
+      console.log('Successfully fetched properties:', data?.length || 0);
+      return data || [];
     } catch (error) {
       console.error('Error fetching properties:', error);
       throw error;
     }
   }
 
+  // Fetch property by ID
   async fetchPropertyById(id: string): Promise<Property | null> {
     try {
-      const response = await fetch(`${this.baseUrl}/api/properties/${id}`);
-      
-      if (!response.ok) {
-        if (response.status === 404) {
+      const { data, error } = await supabase
+        .from('properties')
+        .select(`
+          *,
+          property_images (*),
+          agent:users!properties_agent_id_fkey (
+            id,
+            name,
+            email,
+            phone,
+            profile_image_url
+          )
+        `)
+        .eq('id', id)
+        .eq('status', 'active')
+        .single();
+
+      if (error) {
+        if (error.code === 'PGRST116') {
+          // No rows returned
           return null;
         }
-        throw new Error(`HTTP error! status: ${response.status}`);
+        console.error('Error fetching property by ID:', error);
+        throw new Error(`Database error: ${error.message}`);
       }
-      
-      const data: SinglePropertyResponse = await response.json();
-      return data.property || null;
+
+      return data;
     } catch (error) {
       console.error('Error fetching property by ID:', error);
       throw error;
     }
   }
 
+  // Search properties by text query
   async searchProperties(query: string, filters?: PropertyFilters): Promise<Property[]> {
     try {
-      let url = `${this.baseUrl}/api/properties/search?q=${encodeURIComponent(query)}`;
-      
-      // Add additional filters if provided
+      let searchQuery = supabase
+        .from('properties')
+        .select(`
+          *,
+          property_images (*),
+          agent:users!properties_agent_id_fkey (
+            id,
+            name,
+            email,
+            phone,
+            profile_image_url
+          )
+        `)
+        .eq('status', 'active')
+        .or(`title.ilike.%${query}%,description.ilike.%${query}%,city.ilike.%${query}%,address.ilike.%${query}%`)
+        .order('created_at', { ascending: false });
+
+      // Apply additional filters
       if (filters) {
-        const params = new URLSearchParams();
-        Object.entries(filters).forEach(([key, value]) => {
-          if (value !== undefined && value !== null) {
-            params.append(key, value.toString());
-          }
-        });
-        if (params.toString()) {
-          url += `&${params.toString()}`;
+        if (filters.city) {
+          searchQuery = searchQuery.ilike('city', `%${filters.city}%`);
+        }
+        if (filters.min_price) {
+          searchQuery = searchQuery.gte('price', filters.min_price);
+        }
+        if (filters.max_price) {
+          searchQuery = searchQuery.lte('price', filters.max_price);
+        }
+        if (filters.bedrooms) {
+          searchQuery = searchQuery.gte('bedrooms', filters.bedrooms);
+        }
+        if (filters.bathrooms) {
+          searchQuery = searchQuery.gte('bathrooms', filters.bathrooms);
+        }
+        if (filters.property_type) {
+          searchQuery = searchQuery.eq('property_type', filters.property_type);
         }
       }
 
-      console.log('Searching properties from:', url);
-      const response = await fetch(url);
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      const { data, error } = await searchQuery;
+
+      if (error) {
+        console.error('Error searching properties:', error);
+        throw new Error(`Database error: ${error.message}`);
       }
-      
-      const data: PropertyResponse = await response.json();
-      return data.properties || [];
+
+      console.log('Search results:', data?.length || 0);
+      return data || [];
     } catch (error) {
       console.error('Error searching properties:', error);
       throw error;
     }
   }
 
+  // Search properties by filters only
   async searchPropertiesByFilters(filters: PropertyFilters): Promise<Property[]> {
     try {
-      const params = new URLSearchParams();
-      Object.entries(filters).forEach(([key, value]) => {
-        if (value !== undefined && value !== null) {
-          params.append(key, value.toString());
-        }
-      });
+      let query = supabase
+        .from('properties')
+        .select(`
+          *,
+          property_images (*),
+          agent:users!properties_agent_id_fkey (
+            id,
+            name,
+            email,
+            phone,
+            profile_image_url
+          )
+        `)
+        .eq('status', 'active')
+        .order('created_at', { ascending: false });
 
-      const url = `${this.baseUrl}/api/properties/search?${params.toString()}`;
-      console.log('Searching properties by filters from:', url);
-      
-      const response = await fetch(url);
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      // Apply filters
+      if (filters.city) {
+        query = query.ilike('city', `%${filters.city}%`);
       }
-      
-      const data: PropertyResponse = await response.json();
-      return data.properties || [];
+      if (filters.min_price) {
+        query = query.gte('price', filters.min_price);
+      }
+      if (filters.max_price) {
+        query = query.lte('price', filters.max_price);
+      }
+      if (filters.bedrooms) {
+        query = query.gte('bedrooms', filters.bedrooms);
+      }
+      if (filters.bathrooms) {
+        query = query.gte('bathrooms', filters.bathrooms);
+      }
+      if (filters.property_type) {
+        query = query.eq('property_type', filters.property_type);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error('Error searching properties by filters:', error);
+        throw new Error(`Database error: ${error.message}`);
+      }
+
+      console.log('Filter results:', data?.length || 0);
+      return data || [];
     } catch (error) {
       console.error('Error searching properties by filters:', error);
       throw error;
     }
   }
 
+  // Fetch trending properties (most viewed in last 30 days)
   async fetchTrendingProperties(limit: number = 5): Promise<Property[]> {
     try {
-      const response = await fetch(`${this.baseUrl}/api/properties/trending?limit=${limit}`);
-      
-      if (!response.ok) {
-        // If trending endpoint doesn't exist, fall back to regular properties
-        if (response.status === 404) {
-          console.log('Trending endpoint not found, falling back to regular properties');
-          return this.fetchProperties();
-        }
-        throw new Error(`HTTP error! status: ${response.status}`);
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+      const { data, error } = await supabase
+        .from('properties')
+        .select(`
+          *,
+          property_images (*),
+          agent:users!properties_agent_id_fkey (
+            id,
+            name,
+            email,
+            phone,
+            profile_image_url
+          ),
+          property_views!inner (
+            id
+          )
+        `)
+        .eq('status', 'active')
+        .gte('property_views.viewed_at', thirtyDaysAgo.toISOString())
+        .order('property_views(id)', { ascending: false })
+        .limit(limit);
+
+      if (error) {
+        console.error('Error fetching trending properties:', error);
+        // Fallback to recent properties
+        return this.fetchRecentProperties(limit);
       }
-      
-      // Check if response is JSON
-      const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        console.error('Response is not JSON:', contentType);
-        console.error('Response text:', await response.text());
-        throw new Error('Invalid response format: expected JSON');
-      }
-      
-      const data: PropertyResponse = await response.json();
-      return data.properties || [];
+
+      console.log('Trending properties:', data?.length || 0);
+      return data || [];
     } catch (error) {
       console.error('Error fetching trending properties:', error);
-      
-      // Fallback to regular properties if trending fails
-      try {
-        console.log('Falling back to regular properties due to trending error');
-        return this.fetchProperties();
-      } catch (fallbackError) {
-        console.error('Fallback also failed:', fallbackError);
-        throw error; // Throw original error
-      }
+      // Fallback to recent properties
+      return this.fetchRecentProperties(limit);
     }
   }
 
-  async fetchTopMatches(userId?: string, limit: number = 3): Promise<Property[]> {
+  // Fetch recent properties as fallback
+  async fetchRecentProperties(limit: number = 5): Promise<Property[]> {
     try {
-      let url = `${this.baseUrl}/api/properties/top-matches?limit=${limit}`;
-      if (userId) {
-        url += `&userId=${userId}`;
+      const { data, error } = await supabase
+        .from('properties')
+        .select(`
+          *,
+          property_images (*),
+          agent:users!properties_agent_id_fkey (
+            id,
+            name,
+            email,
+            phone,
+            profile_image_url
+          )
+        `)
+        .eq('status', 'active')
+        .order('created_at', { ascending: false })
+        .limit(limit);
+
+      if (error) {
+        console.error('Error fetching recent properties:', error);
+        throw new Error(`Database error: ${error.message}`);
       }
 
-      const response = await fetch(url);
-      
-      if (!response.ok) {
-        // If top-matches endpoint doesn't exist, fall back to regular properties
-        if (response.status === 404) {
-          console.log('Top-matches endpoint not found, falling back to regular properties');
-          return this.fetchProperties();
-        }
-        throw new Error(`HTTP error! status: ${response.status}`);
+      return data || [];
+    } catch (error) {
+      console.error('Error fetching recent properties:', error);
+      throw error;
+    }
+  }
+
+  // Fetch top matches (properties with high ratings)
+  async fetchTopMatches(userId?: string, limit: number = 3): Promise<Property[]> {
+    try {
+      let query = supabase
+        .from('properties')
+        .select(`
+          *,
+          property_images (*),
+          agent:users!properties_agent_id_fkey (
+            id,
+            name,
+            email,
+            phone,
+            profile_image_url
+          ),
+          reviews!inner (
+            rating
+          )
+        `)
+        .eq('status', 'active')
+        .gte('reviews.rating', 4)
+        .order('reviews(rating)', { ascending: false })
+        .limit(limit);
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error('Error fetching top matches:', error);
+        // Fallback to recent properties
+        return this.fetchRecentProperties(limit);
       }
-      
-      // Check if response is JSON
-      const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        console.error('Response is not JSON:', contentType);
-        console.error('Response text:', await response.text());
-        throw new Error('Invalid response format: expected JSON');
-      }
-      
-      const data: PropertyResponse = await response.json();
-      return data.properties || [];
+
+      console.log('Top matches:', data?.length || 0);
+      return data || [];
     } catch (error) {
       console.error('Error fetching top matches:', error);
-      
-      // Fallback to regular properties if top-matches fails
-      try {
-        console.log('Falling back to regular properties due to top-matches error');
-        return this.fetchProperties();
-      } catch (fallbackError) {
-        console.error('Fallback also failed:', fallbackError);
-        throw error; // Throw original error
+      // Fallback to recent properties
+      return this.fetchRecentProperties(limit);
+    }
+  }
+
+  // Record property view for analytics
+  async recordPropertyView(propertyId: string, userId?: string): Promise<void> {
+    try {
+      const { error } = await supabase
+        .from('property_views')
+        .insert({
+          property_id: propertyId,
+          user_id: userId,
+          viewed_at: new Date().toISOString()
+        });
+
+      if (error) {
+        console.error('Error recording property view:', error);
       }
+    } catch (error) {
+      console.error('Error recording property view:', error);
     }
   }
 }
