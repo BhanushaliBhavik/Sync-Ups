@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
-import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 // Static mock data
@@ -86,31 +86,37 @@ const PropertyCard = ({
   size: string;
   distance: string;
 }) => (
-  <View style={styles.propertyCard}>
+  <View className="bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-100">
     {/* Property Image Placeholder */}
-    <View style={styles.propertyImage}>
-      <Text style={styles.imagePlaceholderText}>Property Image</Text>
+    <View className="relative h-56 bg-gradient-to-br from-gray-100 to-gray-200 justify-center items-center">
+      <View className="absolute inset-0 bg-black bg-opacity-5" />
+      <View className="bg-white bg-opacity-90 px-4 py-2 rounded-full">
+        <Text className="text-gray-600 text-sm font-medium">Property Image</Text>
+      </View>
       
       {/* Price Overlay */}
-      <View style={styles.priceOverlay}>
-        <Text style={styles.priceText}>{price}</Text>
+      <View className="absolute bottom-4 left-4 bg-black bg-opacity-80 px-4 py-2 rounded-xl backdrop-blur-sm">
+        <Text className="text-white font-bold text-lg">{price}</Text>
       </View>
       
       {/* Favorite Icon */}
-      <TouchableOpacity style={styles.favoriteButton}>
-        <Ionicons name="heart-outline" size={20} color="#FFFFFF" />
+      <TouchableOpacity className="absolute top-4 right-4 w-12 h-12 bg-white bg-opacity-90 rounded-full justify-center items-center shadow-lg">
+        <Ionicons name="heart-outline" size={24} color="#374151" />
       </TouchableOpacity>
     </View>
     
     {/* Property Details */}
-    <View style={styles.propertyDetails}>
-      <Text style={styles.propertyType}>{type}</Text>
-      <Text style={styles.propertyLocation}>{location}</Text>
-      <View style={styles.propertyFooter}>
-        <Text style={styles.propertySize}>{size}</Text>
-        <View style={styles.distanceContainer}>
-          <Ionicons name="location" size={12} color="#6B7280" />
-          <Text style={styles.distanceText}>{distance}</Text>
+    <View className="p-6">
+      <Text className="text-xl font-bold text-gray-900 mb-2">{type}</Text>
+      <View className="flex-row items-center mb-3">
+        <Ionicons name="location-outline" size={16} color="#6B7280" />
+        <Text className="text-gray-600 text-sm ml-1">{location}</Text>
+      </View>
+      <View className="flex-row justify-between items-center">
+        <Text className="text-gray-700 font-medium">{size}</Text>
+        <View className="flex-row items-center bg-gray-50 px-3 py-1 rounded-full">
+          <Ionicons name="location" size={14} color="#6B7280" />
+          <Text className="text-gray-600 text-sm ml-1 font-medium">{distance}</Text>
         </View>
       </View>
     </View>
@@ -131,19 +137,21 @@ const FilterButton = ({
 }) => (
   <TouchableOpacity 
     onPress={onPress}
-    style={[styles.filterButton, isActive ? styles.activeFilterButton : styles.inactiveFilterButton]}
+    className={`px-5 py-3 rounded-xl mr-3 shadow-sm ${isActive ? 'bg-gradient-to-r from-gray-900 to-gray-800 shadow-lg' : 'bg-white border border-gray-200'}`}
   >
-    <Text style={[styles.filterButtonText, isActive ? styles.activeFilterButtonText : styles.inactiveFilterButtonText]}>
-      {title}
-    </Text>
-    {showIcon && (
-      <Ionicons 
-        name="chevron-down" 
-        size={12} 
-        color={isActive ? "#FFFFFF" : "#6B7280"} 
-        style={{ marginLeft: 4 }}
-      />
-    )}
+    <View className="flex-row items-center">
+      <Text className={`text-sm font-semibold ${isActive ? 'text-white' : 'text-gray-700'}`}>
+        {title}
+      </Text>
+      {showIcon && (
+        <Ionicons 
+          name="chevron-down" 
+          size={14} 
+          color={isActive ? "#FFFFFF" : "#6B7280"} 
+          style={{ marginLeft: 6 }}
+        />
+      )}
+    </View>
   </TouchableOpacity>
 );
 
@@ -239,31 +247,31 @@ export default function SearchScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+    <SafeAreaView className="flex-1 bg-gray-50">
+      <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
         {/* Search Bar */}
-        <View style={styles.searchSection}>
-          <View style={styles.searchBar}>
-            <Ionicons name="search" size={20} color="#6B7280" style={styles.searchIcon} />
+        <View className="bg-white px-6 py-6 shadow-sm border-b border-gray-100">
+          <View className="flex-row items-center bg-gray-50 rounded-2xl px-5 py-4 shadow-sm">
+            <Ionicons name="search" size={22} color="#6B7280" className="mr-4" />
             <TextInput
-              style={styles.searchInput}
+              className="flex-1 text-gray-900 text-base font-medium"
               placeholder="Search properties..."
               placeholderTextColor="#9CA3AF"
               value={searchText}
               onChangeText={handleSearch}
             />
-            <TouchableOpacity style={styles.voiceButton}>
+            <TouchableOpacity className="ml-4 w-10 h-10 bg-gray-100 rounded-full justify-center items-center">
               <Ionicons name="mic" size={20} color="#6B7280" />
             </TouchableOpacity>
           </View>
         </View>
 
         {/* Filter and Sort Section */}
-        <View style={styles.filterSection}>
+        <View className="bg-white px-6 py-6 border-b border-gray-100">
           <ScrollView 
             horizontal 
             showsHorizontalScrollIndicator={false}
-            style={styles.filterScrollView}
+            className="mb-4"
           >
             <FilterButton 
               title="Filters" 
@@ -299,17 +307,20 @@ export default function SearchScreen() {
           </ScrollView>
           
           {/* Results Count */}
-          <View style={styles.resultsSection}>
-            <Text style={styles.resultsText}>
+          <View className="flex-row justify-between items-center">
+            <Text className="text-gray-600 text-base font-medium">
               {filteredProperties.length} properties found
             </Text>
+            <TouchableOpacity className="bg-blue-50 px-4 py-2 rounded-lg">
+              <Text className="text-blue-600 font-semibold">Sort by</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
         {/* Property Listings */}
-        <View style={styles.propertyList}>
+        <View className="px-6 py-6">
           {filteredProperties.map((property) => (
-            <View key={property.id} style={styles.propertyCardWrapper}>
+            <View key={property.id} className="mb-6">
               <PropertyCard
                 price={formatPrice(property.price)}
                 type={formatPropertyType(property)}
@@ -323,199 +334,20 @@ export default function SearchScreen() {
 
         {/* No Results Message */}
         {filteredProperties.length === 0 && (
-          <View style={styles.emptyContainer}>
-            <Ionicons name="search-outline" size={64} color="#9CA3AF" />
-            <Text style={styles.emptyTitle}>No properties found</Text>
-            <Text style={styles.emptySubtitle}>
-              Try adjusting your search criteria or filters
+          <View className="flex-1 justify-center items-center px-8 py-20">
+            <View className="w-24 h-24 bg-gray-100 rounded-full justify-center items-center mb-6">
+              <Ionicons name="search-outline" size={48} color="#9CA3AF" />
+            </View>
+            <Text className="text-2xl font-bold text-gray-900 mb-3 text-center">No properties found</Text>
+            <Text className="text-gray-600 text-center text-base leading-6 mb-8">
+              Try adjusting your search criteria or filters to find what you're looking for
             </Text>
+            <TouchableOpacity className="bg-gradient-to-r from-gray-900 to-gray-800 px-8 py-4 rounded-xl shadow-lg">
+              <Text className="text-white font-semibold text-base">Clear Filters</Text>
+            </TouchableOpacity>
           </View>
         )}
       </ScrollView>
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
-  scrollView: {
-    flex: 1,
-  },
-  searchSection: {
-    paddingHorizontal: 16,
-    marginBottom: 20,
-  },
-  searchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F9FAFB',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-  },
-  searchIcon: {
-    marginRight: 12,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 16,
-    color: '#111827',
-  },
-  voiceButton: {
-    padding: 4,
-  },
-  filterSection: {
-    paddingHorizontal: 16,
-    marginBottom: 20,
-  },
-  filterScrollView: {
-    marginBottom: 16,
-  },
-  filterButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    marginRight: 8,
-    borderWidth: 1,
-  },
-  activeFilterButton: {
-    backgroundColor: '#1F2937',
-    borderColor: '#1F2937',
-  },
-  inactiveFilterButton: {
-    backgroundColor: '#FFFFFF',
-    borderColor: '#E5E7EB',
-  },
-  filterButtonText: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  activeFilterButtonText: {
-    color: '#FFFFFF',
-  },
-  inactiveFilterButtonText: {
-    color: '#374151',
-  },
-  resultsSection: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  resultsText: {
-    fontSize: 14,
-    color: '#6B7280',
-  },
-  propertyList: {
-    paddingHorizontal: 16,
-    paddingBottom: 20,
-  },
-  propertyCardWrapper: {
-    marginBottom: 16,
-  },
-  propertyCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    overflow: 'hidden',
-  },
-  propertyImage: {
-    height: 200,
-    backgroundColor: '#D1D5DB',
-    justifyContent: 'center',
-    alignItems: 'center',
-    position: 'relative',
-  },
-  imagePlaceholderText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  priceOverlay: {
-    position: 'absolute',
-    bottom: 12,
-    left: 12,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  priceText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  favoriteButton: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-    borderRadius: 20,
-    padding: 8,
-  },
-  propertyDetails: {
-    padding: 16,
-  },
-  propertyType: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#111827',
-    marginBottom: 4,
-  },
-  propertyLocation: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginBottom: 8,
-  },
-  propertyFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  propertySize: {
-    fontSize: 14,
-    color: '#374151',
-  },
-  distanceContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  distanceText: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginLeft: 4,
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 32,
-    paddingVertical: 64,
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#111827',
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  emptySubtitle: {
-    fontSize: 16,
-    color: '#6B7280',
-    textAlign: 'center',
-    marginBottom: 24,
-  },
-});

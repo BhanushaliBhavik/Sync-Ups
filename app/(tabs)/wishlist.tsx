@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 // Static mock data for wishlist items
@@ -98,38 +98,49 @@ const PropertyCard = ({
   };
 
   return (
-    <View style={styles.propertyCard}>
-      {/* Left Side - Image Placeholder */}
-      <TouchableOpacity style={styles.imageContainer} onPress={onSelect}>
-        <View style={[styles.imagePlaceholder, isSelected && styles.selectedImage]}>
-          <Text style={styles.imageText}>{property.property_type}</Text>
-          <TouchableOpacity style={styles.heartIcon}>
-            <Ionicons name="heart" size={16} color="#EF4444" />
-          </TouchableOpacity>
-          {isSelected && (
-            <View style={styles.selectionIndicator}>
-              <Ionicons name="checkmark" size={16} color="#FFFFFF" />
+    <View className="bg-white rounded-2xl shadow-lg overflow-hidden mb-6 border border-gray-100">
+      <View className="p-6">
+        <View className="flex-row">
+          {/* Left Side - Image Placeholder */}
+          <TouchableOpacity className="mr-5" onPress={onSelect}>
+            <View className={`relative w-24 h-24 bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl justify-center items-center ${isSelected ? 'ring-2 ring-blue-500 ring-offset-2' : ''}`}>
+              <View className="bg-white bg-opacity-90 px-3 py-1 rounded-lg">
+                <Text className="text-gray-600 text-xs font-semibold text-center">{property.property_type}</Text>
+              </View>
+              <TouchableOpacity className="absolute -top-1 -right-1 w-6 h-6 bg-red-500 rounded-full justify-center items-center shadow-lg">
+                <Ionicons name="heart" size={12} color="#FFFFFF" />
+              </TouchableOpacity>
+              {isSelected && (
+                <View className="absolute inset-0 bg-blue-500 bg-opacity-20 justify-center items-center rounded-xl">
+                  <View className="w-8 h-8 bg-blue-500 rounded-full justify-center items-center shadow-lg">
+                    <Ionicons name="checkmark" size={20} color="#FFFFFF" />
+                  </View>
+                </View>
+              )}
             </View>
-          )}
+          </TouchableOpacity>
+          
+          {/* Middle Section - Property Details */}
+          <View className="flex-1 justify-center">
+            <Text className="text-xl font-bold text-gray-900 mb-2 leading-6">{property.title}</Text>
+            <View className="flex-row items-center mb-2">
+              <Ionicons name="location-outline" size={16} color="#6B7280" />
+              <Text className="text-gray-600 text-sm ml-1">{formatLocation()}</Text>
+            </View>
+            <Text className="text-2xl font-bold text-gray-900 mb-2">{formatPrice(property.price)}</Text>
+            <Text className="text-gray-500 text-sm font-medium">{formatSpecs()}</Text>
+          </View>
+          
+          {/* Right Side - Action Icons */}
+          <View className="justify-center space-y-3">
+            <TouchableOpacity className="w-12 h-12 bg-gray-50 rounded-full justify-center items-center shadow-sm" onPress={onShare}>
+              <Ionicons name="share-outline" size={22} color="#374151" />
+            </TouchableOpacity>
+            <TouchableOpacity className="w-12 h-12 bg-red-50 rounded-full justify-center items-center shadow-sm" onPress={onDelete}>
+              <Ionicons name="trash-outline" size={22} color="#EF4444" />
+            </TouchableOpacity>
+          </View>
         </View>
-      </TouchableOpacity>
-      
-      {/* Middle Section - Property Details */}
-      <View style={styles.propertyDetails}>
-        <Text style={styles.propertyTitle}>{property.title}</Text>
-        <Text style={styles.propertyLocation}>{formatLocation()}</Text>
-        <Text style={styles.propertyPrice}>{formatPrice(property.price)}</Text>
-        <Text style={styles.propertySpecs}>{formatSpecs()}</Text>
-      </View>
-      
-      {/* Right Side - Action Icons */}
-      <View style={styles.actionIcons}>
-        <TouchableOpacity style={styles.actionButton} onPress={onShare}>
-          <Ionicons name="share-outline" size={20} color="#374151" />
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.actionButton} onPress={onDelete}>
-          <Ionicons name="trash-outline" size={20} color="#374151" />
-        </TouchableOpacity>
       </View>
     </View>
   );
@@ -144,10 +155,10 @@ const ToggleSwitch = ({
   onToggle: () => void;
 }) => (
   <TouchableOpacity 
-    style={[styles.toggleContainer, isEnabled && styles.toggleEnabled]} 
+    className={`w-14 h-7 rounded-full shadow-sm ${isEnabled ? 'bg-gradient-to-r from-blue-500 to-blue-600' : 'bg-gray-300'}`}
     onPress={onToggle}
   >
-    <View style={[styles.toggleHandle, isEnabled && styles.toggleHandleEnabled]} />
+    <View className={`w-6 h-6 bg-white rounded-full shadow-lg ${isEnabled ? 'ml-7' : 'ml-0.5'} mt-0.5`} />
   </TouchableOpacity>
 );
 
@@ -207,294 +218,90 @@ export default function WishlistScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView className="flex-1 bg-gray-50">
       {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>
-          {wishlistItems.length} favorited {wishlistItems.length === 1 ? 'home' : 'homes'}
-        </Text>
+      <View className="bg-white px-6 py-6 shadow-sm border-b border-gray-100">
+        <View className="flex-row items-center justify-between">
+          <View>
+            <Text className="text-3xl font-bold text-gray-900">
+              {wishlistItems.length} favorited {wishlistItems.length === 1 ? 'home' : 'homes'}
+            </Text>
+            <Text className="text-gray-600 text-base mt-1">Your saved properties</Text>
+          </View>
+          <View className="w-12 h-12 bg-gradient-to-br from-red-500 to-red-600 rounded-full justify-center items-center shadow-lg">
+            <Ionicons name="heart" size={24} color="#FFFFFF" />
+          </View>
+        </View>
       </View>
 
       {/* Compare Mode Section */}
-      <View style={styles.compareSection}>
-        <View style={styles.compareInfo}>
-          <Text style={styles.compareTitle}>Compare Mode</Text>
-          <Text style={styles.compareSubtitle}>Select up to 2 homes to compare</Text>
+      <View className="bg-white px-6 py-6 border-b border-gray-100">
+        <View className="flex-row justify-between items-center">
+          <View className="flex-1">
+            <Text className="text-xl font-bold text-gray-900 mb-1">Compare Mode</Text>
+            <Text className="text-gray-600 text-base">Select up to 2 homes to compare</Text>
+          </View>
+          <ToggleSwitch 
+            isEnabled={compareMode} 
+            onToggle={() => setCompareMode(!compareMode)} 
+          />
         </View>
-        <ToggleSwitch 
-          isEnabled={compareMode} 
-          onToggle={() => setCompareMode(!compareMode)} 
-        />
       </View>
 
       {/* Compare Button */}
       {compareMode && selectedProperties.length > 0 && (
-        <View style={styles.compareButtonContainer}>
+        <View className="bg-white px-6 py-4 border-b border-gray-100">
           <TouchableOpacity 
-            style={styles.compareButton}
+            className="bg-gradient-to-r from-blue-500 to-blue-600 py-4 rounded-xl shadow-lg"
             onPress={handleCompare}
           >
-            <Text style={styles.compareButtonText}>
-              Compare {selectedProperties.length} Properties
-            </Text>
+            <View className="flex-row justify-center items-center">
+              <Ionicons name="git-compare" size={20} color="#FFFFFF" />
+              <Text className="text-white text-center font-bold text-base ml-2">
+                Compare {selectedProperties.length} Properties
+              </Text>
+            </View>
           </TouchableOpacity>
         </View>
       )}
 
       {/* Property Listings */}
       <ScrollView 
-        style={styles.propertyList} 
+        className="flex-1 px-6 py-6" 
         showsVerticalScrollIndicator={false}
       >
         {wishlistItems.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Ionicons name="heart-outline" size={64} color="#D1D5DB" />
-            <Text style={styles.emptyTitle}>Your wishlist is empty</Text>
-            <Text style={styles.emptySubtitle}>
-              Start exploring properties and add them to your wishlist
+          <View className="flex-1 justify-center items-center py-20">
+            <View className="w-32 h-32 bg-gradient-to-br from-red-100 to-red-200 rounded-full justify-center items-center mb-8 shadow-lg">
+              <Ionicons name="heart-outline" size={64} color="#EF4444" />
+            </View>
+            <Text className="text-3xl font-bold text-gray-900 mb-3 text-center">Your wishlist is empty</Text>
+            <Text className="text-gray-600 text-center text-lg leading-7 mb-10 max-w-xs">
+              Start exploring properties and add them to your wishlist to save them for later
             </Text>
             <TouchableOpacity 
-              style={styles.browseButton}
+              className="bg-gradient-to-r from-gray-900 to-gray-800 px-8 py-4 rounded-xl shadow-lg"
               onPress={() => router.push('/(tabs)/search')}
             >
-              <Text style={styles.browseButtonText}>Browse Properties</Text>
+              <View className="flex-row items-center">
+                <Ionicons name="search" size={20} color="#FFFFFF" />
+                <Text className="text-white font-bold text-lg ml-2">Browse Properties</Text>
+              </View>
             </TouchableOpacity>
           </View>
         ) : (
           wishlistItems.map((item) => (
-            <View key={item.id} style={styles.propertyCardWrapper}>
-              <PropertyCard
-                item={item}
-                isSelected={selectedProperties.includes(item.property_id)}
-                onSelect={() => handlePropertySelect(item.property_id)}
-                onShare={() => handleShare(item.property_id)}
-                onDelete={() => handleDelete(item.property_id)}
-              />
-            </View>
+            <PropertyCard
+              key={item.id}
+              item={item}
+              isSelected={selectedProperties.includes(item.property_id)}
+              onSelect={() => handlePropertySelect(item.property_id)}
+              onShare={() => handleShare(item.property_id)}
+              onDelete={() => handleDelete(item.property_id)}
+            />
           ))
         )}
       </ScrollView>
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F9FAFB',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    fontSize: 16,
-    color: '#6B7280',
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 32,
-    paddingVertical: 64,
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#374151',
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  emptySubtitle: {
-    fontSize: 16,
-    color: '#6B7280',
-    textAlign: 'center',
-    lineHeight: 24,
-    marginBottom: 24,
-  },
-  browseButton: {
-    backgroundColor: '#4F46E5',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  browseButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  header: {
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    backgroundColor: '#FFFFFF',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#374151',
-  },
-  compareSection: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-  },
-  compareInfo: {
-    flex: 1,
-  },
-  compareTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#374151',
-    marginBottom: 4,
-  },
-  compareSubtitle: {
-    fontSize: 14,
-    color: '#6B7280',
-  },
-  toggleContainer: {
-    width: 48,
-    height: 24,
-    backgroundColor: '#D1D5DB',
-    borderRadius: 12,
-    padding: 2,
-  },
-  toggleEnabled: {
-    backgroundColor: '#3B82F6',
-  },
-  toggleHandle: {
-    width: 20,
-    height: 20,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 10,
-  },
-  toggleHandleEnabled: {
-    transform: [{ translateX: 24 }],
-  },
-  propertyList: {
-    flex: 1,
-  },
-  propertyCard: {
-    flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
-    marginHorizontal: 16,
-    marginVertical: 8,
-    borderRadius: 12,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  imageContainer: {
-    marginRight: 16,
-  },
-  imagePlaceholder: {
-    width: 80,
-    height: 80,
-    backgroundColor: '#F3F4F6',
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-    position: 'relative',
-  },
-  selectedImage: {
-    backgroundColor: '#4F46E5',
-  },
-  imageText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#6B7280',
-    textAlign: 'center',
-  },
-  heartIcon: {
-    position: 'absolute',
-    top: 4,
-    right: 4,
-  },
-  selectionIndicator: {
-    position: 'absolute',
-    bottom: 4,
-    right: 4,
-    backgroundColor: '#10B981',
-    borderRadius: 10,
-    width: 20,
-    height: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  propertyDetails: {
-    flex: 1,
-    justifyContent: 'space-between',
-  },
-  propertyTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 4,
-  },
-  propertyLocation: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginBottom: 4,
-  },
-  propertyPrice: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#059669',
-    marginBottom: 4,
-  },
-  propertySpecs: {
-    fontSize: 14,
-    color: '#6B7280',
-  },
-  actionIcons: {
-    justifyContent: 'space-around',
-    marginLeft: 16,
-  },
-  actionButton: {
-    padding: 8,
-    marginVertical: 4,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: '#E5E7EB',
-    marginHorizontal: 16,
-  },
-  compareButtonContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    backgroundColor: '#FFFFFF',
-    borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
-  },
-  compareButton: {
-    backgroundColor: '#F3F4F6',
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  compareButtonActive: {
-    backgroundColor: '#4F46E5',
-  },
-  compareButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#6B7280',
-  },
-  compareButtonTextActive: {
-    color: '#FFFFFF',
-  },
-  propertyCardWrapper: {
-    // This style is needed to apply marginHorizontal to the individual card
-    // as the card itself already has marginHorizontal.
-    marginHorizontal: 16,
-  },
-});
