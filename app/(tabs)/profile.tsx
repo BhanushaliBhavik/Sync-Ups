@@ -120,7 +120,7 @@ export default function ProfileScreen() {
 
         {/* Profile Options */}
         <View className="space-y-3 mb-8">
-          <TouchableOpacity className="p-4 bg-surface border border-border rounded-xl flex-row items-center shadow-sm">
+          <TouchableOpacity className="mb-2 p-4 bg-surface border border-border rounded-xl flex-row items-center shadow-sm">
             <Ionicons name="person-outline" size={20} color="#6B7280" />
             <Text className="text-text-primary font-medium ml-3">Edit Profile</Text>
           </TouchableOpacity>
@@ -128,7 +128,7 @@ export default function ProfileScreen() {
           {/* Property Preferences */}
           {hasPreferences !== null && (
             <TouchableOpacity
-              className="p-4 bg-surface border border-border rounded-xl flex-row items-center justify-between shadow-sm"
+              className="mb-2 p-4 bg-surface border border-border rounded-xl flex-row items-center justify-between shadow-sm"
               onPress={handleManagePreferences}
             >
               <View className="flex-row items-center">
@@ -146,17 +146,17 @@ export default function ProfileScreen() {
             </TouchableOpacity>
           )}
           
-          <TouchableOpacity className="p-4 bg-surface border border-border rounded-xl flex-row items-center shadow-sm">
+          <TouchableOpacity className="mb-2 p-4 bg-surface border border-border rounded-xl flex-row items-center shadow-sm">
             <Ionicons name="heart-outline" size={20} color="#6B7280" />
             <Text className="text-text-primary font-medium ml-3">Saved Properties</Text>
           </TouchableOpacity>
           
-          <TouchableOpacity className="p-4 bg-surface border border-border rounded-xl flex-row items-center shadow-sm">
+          <TouchableOpacity className=" mb-2 p-4 bg-surface border border-border rounded-xl flex-row items-center shadow-sm">
             <Ionicons name="time-outline" size={20} color="#6B7280" />
             <Text className="text-text-primary font-medium ml-3">Search History</Text>
           </TouchableOpacity>
           
-          <TouchableOpacity className="p-4 bg-surface border border-border rounded-xl flex-row items-center shadow-sm">
+          <TouchableOpacity className="mb-2 p-4 bg-surface border border-border rounded-xl flex-row items-center shadow-sm">
             <Ionicons name="notifications-outline" size={20} color="#6B7280" />
             <Text className="text-text-primary font-medium ml-3">Notification Settings</Text>
           </TouchableOpacity>
