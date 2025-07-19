@@ -217,6 +217,12 @@ export default function ProfileScreen() {
           >
             <Text style={styles.testButtonText}>Compare</Text>
           </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.testButton} 
+            onPress={() => router.push("/AfterSignUpScreen")}
+          >
+            <Text style={styles.testButtonText}>Ater sign Up</Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
     </SafeAreaView>

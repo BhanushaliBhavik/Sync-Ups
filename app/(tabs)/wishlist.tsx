@@ -1,65 +1,88 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useState } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useRouter } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import { Alert, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { WishlistButton } from '../../components/WishlistButton';
+import { getWishlist, removeFromWishlist, WishlistItem } from '../../lib/wishlist';
 
 // Property Card Component
 const PropertyCard = ({ 
-  propertyType,
-  title, 
-  location, 
-  price, 
-  specs,
+  item,
   isSelected = false,
   onSelect,
   onShare,
   onDelete
 }: {
-  propertyType: string;
-  title: string;
-  location: string;
-  price: string;
-  specs: string;
+  item: WishlistItem;
   isSelected?: boolean;
   onSelect: () => void;
   onShare: () => void;
   onDelete: () => void;
-}) => (
-  <View style={styles.propertyCard}>
-    {/* Left Side - Image Placeholder */}
-    <TouchableOpacity style={styles.imageContainer} onPress={onSelect}>
-      <View style={[styles.imagePlaceholder, isSelected && styles.selectedImage]}>
-        <Text style={styles.imageText}>{propertyType}</Text>
-        <TouchableOpacity style={styles.heartIcon}>
-          <Ionicons name="heart" size={16} color="#FFFFFF" />
-        </TouchableOpacity>
-        {isSelected && (
-          <View style={styles.selectionIndicator}>
-            <Ionicons name="checkmark" size={16} color="#FFFFFF" />
-          </View>
-        )}
+}) => {
+  const property = item.property;
+  if (!property) return null;
+
+  const formatPrice = (price: number | null) => {
+    if (!price) return 'Price on request';
+    return `$${price.toLocaleString()}`;
+  };
+
+  const formatSpecs = () => {
+    const specs = [];
+    if (property.bedrooms) specs.push(`${property.bedrooms} beds`);
+    if (property.bathrooms) specs.push(`${property.bathrooms} baths`);
+    if (property.square_feet) specs.push(`${property.square_feet.toLocaleString()} sq ft`);
+    return specs.join(' ');
+  };
+
+  const formatLocation = () => {
+    const parts = [];
+    if (property.address) parts.push(property.address);
+    if (property.city) parts.push(property.city);
+    if (property.state) parts.push(property.state);
+    return parts.join(', ');
+  };
+
+  return (
+    <View style={styles.propertyCard}>
+      {/* Left Side - Image Placeholder */}
+      <TouchableOpacity style={styles.imageContainer} onPress={onSelect}>
+        <View style={[styles.imagePlaceholder, isSelected && styles.selectedImage]}>
+          <Text style={styles.imageText}>{property.property_type}</Text>
+          <WishlistButton 
+            propertyId={property.id}
+            size={16}
+            style={styles.heartIcon}
+          />
+          {isSelected && (
+            <View style={styles.selectionIndicator}>
+              <Ionicons name="checkmark" size={16} color="#FFFFFF" />
+            </View>
+          )}
+        </View>
+      </TouchableOpacity>
+      
+      {/* Middle Section - Property Details */}
+      <View style={styles.propertyDetails}>
+        <Text style={styles.propertyTitle}>{property.title}</Text>
+        <Text style={styles.propertyLocation}>{formatLocation()}</Text>
+        <Text style={styles.propertyPrice}>{formatPrice(property.price)}</Text>
+        <Text style={styles.propertySpecs}>{formatSpecs()}</Text>
       </View>
-    </TouchableOpacity>
-    
-    {/* Middle Section - Property Details */}
-    <View style={styles.propertyDetails}>
-      <Text style={styles.propertyTitle}>{title}</Text>
-      <Text style={styles.propertyLocation}>{location}</Text>
-      <Text style={styles.propertyPrice}>{price}</Text>
-      <Text style={styles.propertySpecs}>{specs}</Text>
+      
+      {/* Right Side - Action Icons */}
+      <View style={styles.actionIcons}>
+        <TouchableOpacity style={styles.actionButton} onPress={onShare}>
+          <Ionicons name="share-outline" size={20} color="#374151" />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.actionButton} onPress={onDelete}>
+          <Ionicons name="trash-outline" size={20} color="#374151" />
+        </TouchableOpacity>
+      </View>
     </View>
-    
-    {/* Right Side - Action Icons */}
-    <View style={styles.actionIcons}>
-      <TouchableOpacity style={styles.actionButton} onPress={onShare}>
-        <Ionicons name="share-outline" size={20} color="#374151" />
-      </TouchableOpacity>
-      <TouchableOpacity style={styles.actionButton} onPress={onDelete}>
-        <Ionicons name="trash-outline" size={20} color="#374151" />
-      </TouchableOpacity>
-    </View>
-  </View>
-);
+  );
+};
 
 // Toggle Switch Component
 const ToggleSwitch = ({ 
@@ -78,45 +101,43 @@ const ToggleSwitch = ({
 );
 
 export default function WishlistScreen() {
+  const router = useRouter();
   const [compareMode, setCompareMode] = useState(false);
-  const [selectedProperties, setSelectedProperties] = useState<number[]>([]);
+  const [selectedProperties, setSelectedProperties] = useState<string[]>([]);
+  const [wishlistItems, setWishlistItems] = useState<WishlistItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const properties = [
-    {
-      id: 1,
-      propertyType: 'Modern House',
-      title: 'Modern Family Home',
-      location: '123 Oak Street, Downtown',
-      price: '$850,000',
-      specs: '3 beds 2 baths 2,100 sq ft'
-    },
-    {
-      id: 2,
-      propertyType: 'Villa Estate',
-      title: 'Luxury Villa Estate',
-      location: '456 Pine Avenue, Westside',
-      price: '$1,250,000',
-      specs: '4 beds 3 baths 3,200 sq ft'
-    },
-    {
-      id: 3,
-      propertyType: 'Cozy Condo',
-      title: 'Cozy Downtown Condo',
-      location: '789 Maple Drive, City Center',
-      price: '$425,000',
-      specs: '2 beds 1 bath 1,200 sq ft'
-    },
-    {
-      id: 4,
-      propertyType: 'Ranch Style',
-      title: 'Ranch Style Home',
-      location: '321 Elm Street, Suburbs',
-      price: '$675,000',
-      specs: '3 beds 2 baths 1,800 sq ft'
+  useEffect(() => {
+    loadWishlist();
+  }, []);
+
+  const loadWishlist = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await getWishlist();
+      
+      if (error) {
+        Alert.alert('Error', error);
+        return;
+      }
+      
+      setWishlistItems(data || []);
+    } catch (error) {
+      console.error('Error loading wishlist:', error);
+      Alert.alert('Error', 'Failed to load wishlist');
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
 
-  const handlePropertySelect = (propertyId: number) => {
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadWishlist();
+    setRefreshing(false);
+  };
+
+  const handlePropertySelect = (propertyId: string) => {
     if (!compareMode) return;
     
     setSelectedProperties(prev => {
@@ -129,27 +150,77 @@ export default function WishlistScreen() {
     });
   };
 
-  const handleShare = (propertyId: number) => {
+  const handleShare = (propertyId: string) => {
     // Handle share functionality
     console.log('Share property:', propertyId);
+    Alert.alert('Share', 'Share functionality coming soon!');
   };
 
-  const handleDelete = (propertyId: number) => {
-    // Handle delete functionality
-    console.log('Delete property:', propertyId);
+  const handleDelete = async (propertyId: string) => {
+    Alert.alert(
+      'Remove from Wishlist',
+      'Are you sure you want to remove this property from your wishlist?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const { success, error } = await removeFromWishlist(propertyId);
+              if (success) {
+                setWishlistItems(prev => prev.filter(item => item.property_id !== propertyId));
+                setSelectedProperties(prev => prev.filter(id => id !== propertyId));
+              } else {
+                Alert.alert('Error', error || 'Failed to remove from wishlist');
+              }
+            } catch (error) {
+              console.error('Error removing from wishlist:', error);
+              Alert.alert('Error', 'An unexpected error occurred');
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleCompare = () => {
     if (selectedProperties.length === 0) return;
-    // Handle compare functionality
-    console.log('Compare properties:', selectedProperties);
+    
+    // Navigate to compare screen with selected properties
+    const selectedItems = wishlistItems.filter(item => 
+      selectedProperties.includes(item.property_id)
+    );
+    
+    console.log('Compare properties:', selectedItems);
+    Alert.alert('Compare', 'Compare functionality coming soon!');
   };
+
+  const handleWishlistToggle = (propertyId: string, isInWishlist: boolean) => {
+    if (!isInWishlist) {
+      // Property was removed from wishlist
+      setWishlistItems(prev => prev.filter(item => item.property_id !== propertyId));
+      setSelectedProperties(prev => prev.filter(id => id !== propertyId));
+    }
+  };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Loading your wishlist...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>12 favorited homes</Text>
+        <Text style={styles.headerTitle}>
+          {wishlistItems.length} favorited {wishlistItems.length === 1 ? 'home' : 'homes'}
+        </Text>
       </View>
 
       {/* Compare Mode Section */}
@@ -165,37 +236,57 @@ export default function WishlistScreen() {
       </View>
 
       {/* Property Listings */}
-      <ScrollView style={styles.propertyList} showsVerticalScrollIndicator={false}>
-        {properties.map((property) => (
-          <View key={property.id}>
-            <PropertyCard
-              propertyType={property.propertyType}
-              title={property.title}
-              location={property.location}
-              price={property.price}
-              specs={property.specs}
-              isSelected={selectedProperties.includes(property.id)}
-              onSelect={() => handlePropertySelect(property.id)}
-              onShare={() => handleShare(property.id)}
-              onDelete={() => handleDelete(property.id)}
-            />
-            <View style={styles.divider} />
+      <ScrollView 
+        style={styles.propertyList} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
+        {wishlistItems.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Ionicons name="heart-outline" size={64} color="#D1D5DB" />
+            <Text style={styles.emptyTitle}>Your wishlist is empty</Text>
+            <Text style={styles.emptySubtitle}>
+              Start browsing properties and add them to your wishlist
+            </Text>
+            <TouchableOpacity 
+              style={styles.browseButton}
+              onPress={() => router.push('/(tabs)/search')}
+            >
+              <Text style={styles.browseButtonText}>Browse Properties</Text>
+            </TouchableOpacity>
           </View>
-        ))}
+        ) : (
+          wishlistItems.map((item) => (
+            <View key={item.id}>
+              <PropertyCard
+                item={item}
+                isSelected={selectedProperties.includes(item.property_id)}
+                onSelect={() => handlePropertySelect(item.property_id)}
+                onShare={() => handleShare(item.property_id)}
+                onDelete={() => handleDelete(item.property_id)}
+              />
+              <View style={styles.divider} />
+            </View>
+          ))
+        )}
       </ScrollView>
 
       {/* Compare Button */}
-      <View style={styles.compareButtonContainer}>
-        <TouchableOpacity 
-          style={[styles.compareButton, selectedProperties.length > 0 && styles.compareButtonActive]} 
-          onPress={handleCompare}
-          disabled={selectedProperties.length === 0}
-        >
-          <Text style={[styles.compareButtonText, selectedProperties.length > 0 && styles.compareButtonTextActive]}>
-            Compare Selected ({selectedProperties.length}/2)
-          </Text>
-        </TouchableOpacity>
-      </View>
+      {wishlistItems.length > 0 && (
+        <View style={styles.compareButtonContainer}>
+          <TouchableOpacity 
+            style={[styles.compareButton, selectedProperties.length > 0 && styles.compareButtonActive]} 
+            onPress={handleCompare}
+            disabled={selectedProperties.length === 0}
+          >
+            <Text style={[styles.compareButtonText, selectedProperties.length > 0 && styles.compareButtonTextActive]}>
+              Compare Selected ({selectedProperties.length}/2)
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -204,6 +295,47 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F9FAFB',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#6B7280',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 32,
+    paddingVertical: 64,
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#374151',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptySubtitle: {
+    fontSize: 16,
+    color: '#6B7280',
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: 24,
+  },
+  browseButton: {
+    backgroundColor: '#4F46E5',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  browseButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
   header: {
     paddingHorizontal: 16,
@@ -259,50 +391,56 @@ const styles = StyleSheet.create({
   },
   propertyList: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
   },
   propertyCard: {
     flexDirection: 'row',
-    paddingHorizontal: 16,
-    paddingVertical: 16,
     backgroundColor: '#FFFFFF',
+    marginHorizontal: 16,
+    marginVertical: 8,
+    borderRadius: 12,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   imageContainer: {
-    marginRight: 12,
+    marginRight: 16,
   },
   imagePlaceholder: {
     width: 80,
     height: 80,
-    backgroundColor: '#D1D5DB',
+    backgroundColor: '#F3F4F6',
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
   },
   selectedImage: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: '#4F46E5',
   },
   imageText: {
-    color: '#FFFFFF',
     fontSize: 12,
-    fontWeight: '500',
+    fontWeight: '600',
+    color: '#6B7280',
     textAlign: 'center',
   },
   heartIcon: {
     position: 'absolute',
     top: 4,
     right: 4,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-    borderRadius: 10,
-    padding: 2,
   },
   selectionIndicator: {
     position: 'absolute',
-    top: 4,
-    left: 4,
+    bottom: 4,
+    right: 4,
     backgroundColor: '#10B981',
     borderRadius: 10,
-    padding: 2,
+    width: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   propertyDetails: {
     flex: 1,
@@ -310,42 +448,37 @@ const styles = StyleSheet.create({
   },
   propertyTitle: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#374151',
+    fontWeight: '600',
+    color: '#111827',
     marginBottom: 4,
   },
   propertyLocation: {
     fontSize: 14,
     color: '#6B7280',
-    marginBottom: 8,
+    marginBottom: 4,
   },
   propertyPrice: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
-    color: '#374151',
+    color: '#059669',
     marginBottom: 4,
   },
   propertySpecs: {
     fontSize: 14,
-    color: '#374151',
+    color: '#6B7280',
   },
   actionIcons: {
-    justifyContent: 'space-between',
-    marginLeft: 12,
+    justifyContent: 'space-around',
+    marginLeft: 16,
   },
   actionButton: {
-    width: 36,
-    height: 36,
-    backgroundColor: '#F3F4F6',
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 8,
+    padding: 8,
+    marginVertical: 4,
   },
   divider: {
     height: 1,
     backgroundColor: '#E5E7EB',
-    marginLeft: 16,
+    marginHorizontal: 16,
   },
   compareButtonContainer: {
     paddingHorizontal: 16,
@@ -355,13 +488,14 @@ const styles = StyleSheet.create({
     borderTopColor: '#E5E7EB',
   },
   compareButton: {
-    backgroundColor: '#D1D5DB',
+    backgroundColor: '#F3F4F6',
     paddingVertical: 16,
+    paddingHorizontal: 24,
     borderRadius: 12,
     alignItems: 'center',
   },
   compareButtonActive: {
-    backgroundColor: '#374151',
+    backgroundColor: '#4F46E5',
   },
   compareButtonText: {
     fontSize: 16,
