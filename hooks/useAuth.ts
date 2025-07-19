@@ -28,8 +28,8 @@ export const useSignUp = () => {
   return useMutation({
     mutationFn: (data: SignUpData) => authService.signUp(data),
     onMutate: () => {
+      authStore.clearAllUserData(); // Clear old user data completely
       authStore.setLoading(true);
-      authStore.clearError();
     },
     onSuccess: (user) => {
       console.log('✅ useSignUp onSuccess: User processed:', user.id);

@@ -29,19 +29,31 @@ export const preferencesService = {
         return null;
       }
 
+      console.log('📊 DEBUG - Current user from auth store:', {
+        id: currentUser.id,
+        email: currentUser.email,
+        name: currentUser.name
+      });
       console.log('📊 Fetching preferences from Supabase for user:', currentUser.id);
+
+      // Double-check user ID right before database call
+      const finalUser = authStore.getCurrentUser();
+      if (!finalUser?.id || finalUser.id !== currentUser.id) {
+        console.log('⚠️ User ID changed during request, aborting');
+        return null;
+      }
 
       // Get preferences directly from Supabase
       const { data: preferences, error } = await supabase
         .from('user_preferences')
         .select('*')
-        .eq('user_id', currentUser.id)
+        .eq('user_id', finalUser.id)
         .single();
 
       if (error) {
         if (error.code === 'PGRST116') {
           // No preferences found - this is normal for new users
-          console.log('📝 No preferences found for user, returning null');
+          console.log('📝 ✅ CORRECT: No preferences found for NEW USER, returning null');
           return null;
         }
         
@@ -49,8 +61,9 @@ export const preferencesService = {
         throw new Error(`Failed to fetch preferences: ${error.message}`);
       }
 
-      console.log('✅ Preferences loaded from Supabase successfully:');
+      console.log('⚠️ WARNING: Found existing preferences for user:', currentUser.id);
       console.log('📥 Supabase Data:', JSON.stringify(preferences, null, 2));
+      console.log('🔍 This user should be NEW - why do they have preferences already?');
       
       return preferences;
 
@@ -76,9 +89,9 @@ export const preferencesService = {
       console.log('💾 Saving preferences to Supabase for authenticated user:', currentUser.id);
       console.log('📤 Supabase Request - Preferences data to save:', JSON.stringify(preferences, null, 2));
 
-      // Prepare data for Supabase - only include essential columns
+      // Prepare data for Supabase - only include essential columns  
       const preferencesData = {
-        user_id: currentUser.id,
+        user_id: currentUser.id, // Will be updated to finalUser.id after validation
         preferred_location: preferences.preferred_location,
         location_type: preferences.location_type || [],
         home_types: preferences.home_types || [],
@@ -97,11 +110,21 @@ export const preferencesService = {
 
       console.log('💾 Saving to Supabase with data:', JSON.stringify(preferencesData, null, 2));
 
+      // Double-check user ID right before database call
+      const finalUser = authStore.getCurrentUser();
+      if (!finalUser?.id || finalUser.id !== currentUser.id) {
+        console.log('⚠️ User ID changed during save request, aborting');
+        throw new Error('User authentication changed during save');
+      }
+
+      // Update the preferences data with the confirmed user ID
+      preferencesData.user_id = finalUser.id;
+
       // First, check if preferences already exist for this user
       const { data: existingPreferences } = await supabase
         .from('user_preferences')
         .select('id')
-        .eq('user_id', currentUser.id)
+        .eq('user_id', finalUser.id)
         .single();
 
       let savedPreferences;
@@ -113,7 +136,7 @@ export const preferencesService = {
         const result = await supabase
           .from('user_preferences')
           .update(preferencesData)
-          .eq('user_id', currentUser.id)
+          .eq('user_id', finalUser.id)
           .select()
           .single();
         

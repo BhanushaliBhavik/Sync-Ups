@@ -53,9 +53,21 @@ class AuthStore {
     this.error = null;
   }
 
+  // Clear all user state (for fresh signup)
+  clearAllUserData() {
+    console.log('🧹 AuthStore: Clearing all user data');
+    this.user = null;
+    this.isAuthenticated = false;
+    this.unconfirmedUser = null;
+    this.isWaitingForConfirmation = false;
+    this.error = null;
+  }
+
   // Helper to get current user (confirmed or unconfirmed)
   getCurrentUser(): User | null {
-    return this.user || this.unconfirmedUser;
+    const currentUser = this.user || this.unconfirmedUser;
+    console.log('🔍 AuthStore.getCurrentUser():', currentUser ? `${currentUser.id} (${currentUser.email})` : 'null');
+    return currentUser;
   }
 }
 
