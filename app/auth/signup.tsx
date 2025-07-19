@@ -71,58 +71,37 @@ export default function SignUp() {
       console.log('✅ Signup mutation successful');
       
       // Wait a moment for auth state to stabilize
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise(resolve => setTimeout(resolve, 500));
       
       const currentUser = authStore.getCurrentUser();
-      
       console.log('🔍 Auth state after signup:', {
         hasUser: !!currentUser,
         userId: currentUser?.id,
         isConfirmed: !!authStore.user,
-        isWaitingForConfirmation: authStore.isWaitingForConfirmation
       });
       
-      if (authStore.user) {
-        // User is confirmed and signed in
-        console.log('🎯 User is confirmed and signed in, setting up preferences flow');
-        await navigationService.setPreferencesScreenActive(authStore.user.id);
-        router.push('/property-preferences' as any);
+      if (currentUser?.id) {
+        // Set up navigation state for preferences
+        await navigationService.setPreferencesScreenActive(currentUser.id);
         
-      } else if (authStore.unconfirmedUser) {
-        // User needs email confirmation
-        console.log('📧 User needs email confirmation');
-        
-        // Set navigation state for when they confirm
-        await navigationService.setPreferencesScreenActive(authStore.unconfirmedUser.id);
-        
-        // Don't show alert if user becomes confirmed immediately (race condition)
-        if (authStore.user) {
-          console.log('🎯 User confirmed during signup, navigating immediately');
-          router.push('/property-preferences' as any);
-          return;
-        }
-        
+        // Show email verification message since backend requires it
         Alert.alert(
           'Check Your Email! 📧',
-          `We've sent a confirmation link to ${email}. Please check your email and click the link to complete your account setup.`,
+          'We\'ve sent a verification link to your email. Please check your email and click the link to verify your account before you can save preferences.',
           [
             { 
               text: 'OK', 
               onPress: () => {
-                console.log('👤 User acknowledged email confirmation, navigating to preferences');
-                // Clear the form data since signup is complete
+                console.log('👤 User acknowledged email verification needed');
+                // Clear the form since signup is complete
                 setName('');
                 setEmail('');
                 setPassword('');
                 setShowPassword(false);
-                
-                // Clear any existing errors
                 authStore.clearError();
                 
-                // Navigate directly to preferences screen
+                // Navigate to preferences (they'll need to verify email to save)
                 router.push('/property-preferences' as any);
-                
-                console.log('🧹 Form cleared and navigated to preferences');
               }
             }
           ]
@@ -135,6 +114,7 @@ export default function SignUp() {
       
     } catch (error: any) {
       console.error('❌ Signup error:', error);
+      // Error handling is already done in the mutation's onError
     }
   };
 
