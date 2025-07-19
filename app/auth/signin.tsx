@@ -120,9 +120,9 @@ export default function SignIn() {
             )}
 
             {/* OAuth Buttons - Temporarily disabled until configured */}
-            <View className="mb-6">
+            {/* <View className="mb-6"> */}
               {/* Google Sign In - Disabled */}
-              <TouchableOpacity
+              {/* <TouchableOpacity
                 className="w-full p-4 mb-3 border border-border rounded-xl flex-row justify-center items-center bg-gray-100 shadow-sm opacity-50"
                 activeOpacity={0.8}
                 disabled={true}
@@ -131,10 +131,10 @@ export default function SignIn() {
                 <Text className="text-text-secondary font-semibold text-base ml-3">
                   Google Sign-In (Setup Required)
                 </Text>
-              </TouchableOpacity>
+              </TouchableOpacity> */}
 
               {/* Apple Sign In - Disabled */}
-              <TouchableOpacity
+              {/* <TouchableOpacity
                 className="w-full p-4 border border-border rounded-xl flex-row justify-center items-center bg-gray-100 shadow-sm opacity-50"
                 activeOpacity={0.8}
                 disabled={true}
@@ -144,7 +144,7 @@ export default function SignIn() {
                   Apple Sign-In (Setup Required)
                 </Text>
               </TouchableOpacity>
-            </View>
+            </View> */}
 
             {/* Divider */}
             <View className="flex-row items-center mb-6">

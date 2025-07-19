@@ -1,9 +1,11 @@
+import { usePropertyById } from '@/hooks/useProperties';
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
-import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
+import { ActivityIndicator, Dimensions, Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { usePropertyById } from '@/hooks/useProperties';
+
+const { width } = Dimensions.get('window');
 
 // Interactive Tool Card Component
 const ToolCard = ({ 
@@ -107,14 +109,55 @@ const formatLocation = (property: any) => {
   return location.join(', ');
 };
 
+// Enhanced function to get property images - handles multiple formats
+const getPropertyImages = (property: any) => {
+  // Case 1: property_images is an array (standard format)
+  if (property.property_images && Array.isArray(property.property_images)) {
+    return property.property_images;
+  }
+  
+  // Case 2: property_images is a single string
+  if (property.property_images && typeof property.property_images === 'string') {
+    return [{ image_url: property.property_images, is_primary: true }];
+  }
+  
+  // Case 3: Check for single 'image' field (alternative format)
+  if (property.image && typeof property.image === 'string') {
+    return [{ image_url: property.image, is_primary: true }];
+  }
+  
+  // Case 4: Check for 'image_url' field (alternative format)
+  if (property.image_url && typeof property.image_url === 'string') {
+    return [{ image_url: property.image_url, is_primary: true }];
+  }
+  
+  // Case 5: Check for 'images' field that could be array or string
+  const imagesProp = property.images;
+  if (imagesProp) {
+    if (Array.isArray(imagesProp)) {
+      return imagesProp.map((img: string | { image_url: string; is_primary?: boolean }, index: number) => {
+        if (typeof img === 'string') {
+          return { image_url: img, is_primary: false };
+        }
+        return img;
+      });
+    } else if (typeof imagesProp === 'string') {
+      return [{ image_url: imagesProp, is_primary: true }];
+    }
+  }
+  
+  return [];
+};
+
 const getPrimaryImage = (property: any) => {
-  const primaryImage = property.property_images?.find((img: any) => img.is_primary);
-  return primaryImage?.image_url || property.property_images?.[0]?.image_url || null;
+  const images = getPropertyImages(property);
+  const primaryImage = images.find((img: any) => img.is_primary);
+  return primaryImage?.image_url || images[0]?.image_url || null;
 };
 
 export default function PropertyDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const [currentImage, setCurrentImage] = useState(1);
+  const [currentImage, setCurrentImage] = useState(0);
   const [loanAmount, setLoanAmount] = useState('96,00,000');
   const [interestRate, setInterestRate] = useState('8.5');
   const [tenure, setTenure] = useState('20');
@@ -122,7 +165,10 @@ export default function PropertyDetailScreen() {
   // Fetch property data using the ID
   const { property, loading, error, refetch } = usePropertyById(id || '', { autoFetch: !!id });
 
-  const totalImages = property?.property_images?.length || 1;
+  // Get all images for the property
+  const images = property ? getPropertyImages(property) : [];
+  const totalImages = images.length || 1;
+  const hasImages = images.length > 0;
 
   // Loading state
   if (loading) {
@@ -196,24 +242,63 @@ export default function PropertyDetailScreen() {
         >
           {/* Property Image Gallery */}
           <View style={styles.imageGallery}>
-            {getPrimaryImage(property) ? (
+            {hasImages ? (
               <View style={styles.imageContainer}>
-                <Text style={styles.imageGalleryText}>Image: {getPrimaryImage(property)}</Text>
+                <Image
+                  source={{ uri: images[currentImage]?.image_url }}
+                  style={styles.propertyImage}
+                  resizeMode="cover"
+                  onError={(error) => {
+                    console.log('Property detail image failed to load:', error);
+                  }}
+                  onLoad={() => {
+                    console.log('Property detail image loaded:', images[currentImage]?.image_url);
+                  }}
+                />
+                
+                {/* Image navigation buttons */}
+                {images.length > 1 && (
+                  <>
+                    <TouchableOpacity 
+                      style={styles.imageNavButton}
+                      onPress={() => setCurrentImage(prev => prev > 0 ? prev - 1 : images.length - 1)}
+                    >
+                      <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
+                    </TouchableOpacity>
+                    
+                    <TouchableOpacity 
+                      style={[styles.imageNavButton, styles.imageNavButtonRight]}
+                      onPress={() => setCurrentImage(prev => prev < images.length - 1 ? prev + 1 : 0)}
+                    >
+                      <Ionicons name="chevron-forward" size={24} color="#FFFFFF" />
+                    </TouchableOpacity>
+                  </>
+                )}
               </View>
             ) : (
-              <Text style={styles.imageGalleryText}>Property Image Gallery</Text>
+              <View style={styles.imageContainer}>
+                <Ionicons name="home-outline" size={64} color="#9CA3AF" />
+                <Text style={styles.noImageText}>No Images Available</Text>
+              </View>
             )}
             
             {/* Pagination Dots */}
             <View style={styles.paginationDots}>
-              {Array.from({ length: Math.min(totalImages, 3) }).map((_, index) => (
-                <View key={index} style={styles.dot} />
+              {Array.from({ length: Math.min(totalImages, 5) }).map((_, index) => (
+                <TouchableOpacity 
+                  key={index} 
+                  style={[
+                    styles.dot, 
+                    index === currentImage ? styles.activeDot : {}
+                  ]}
+                  onPress={() => setCurrentImage(index)}
+                />
               ))}
             </View>
             
             {/* Image Counter */}
             <View style={styles.imageCounter}>
-              <Text style={styles.imageCounterText}>{currentImage}/{totalImages}</Text>
+              <Text style={styles.imageCounterText}>{currentImage + 1}/{totalImages}</Text>
             </View>
           </View>
 
@@ -360,6 +445,38 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     position: 'relative',
   },
+  imageContainer: {
+    flex: 1,
+    width: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#D1D5DB',
+  },
+  propertyImage: {
+    width: '100%',
+    height: '100%',
+  },
+  imageNavButton: {
+    position: 'absolute',
+    left: 16,
+    top: '50%',
+    marginTop: -20,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    borderRadius: 20,
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  imageNavButtonRight: {
+    right: 16,
+    left: 'auto',
+  },
+  noImageText: {
+    color: '#6B7280',
+    fontSize: 16,
+    marginTop: 8,
+  },
   imageGalleryText: {
     color: '#FFFFFF',
     fontSize: 18,
@@ -377,6 +494,11 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: 4,
     backgroundColor: '#FFFFFF',
+    opacity: 0.5,
+  },
+  activeDot: {
+    opacity: 1,
+    backgroundColor: '#007C91',
   },
   imageCounter: {
     position: 'absolute',
@@ -646,11 +768,5 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
-  },
-  imageContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#D1D5DB',
   },
 });

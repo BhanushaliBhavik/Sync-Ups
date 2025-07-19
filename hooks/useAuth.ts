@@ -138,15 +138,33 @@ export const useAuthInit = () => {
       try {
         authStore.setLoading(true);
         
-        // Get initial user state
-        const currentUser = await authService.getCurrentUser();
-        console.log('🔍 useAuthInit: Initial user check:', currentUser ? 'Present' : 'None');
-        
-        if (currentUser && mounted) {
-          authStore.setUser(currentUser);
-          console.log('✅ useAuthInit: User restored from session');
-        } else if (mounted) {
-          console.log('ℹ️ useAuthInit: No session found');
+        // Check if we already have a user in the auth store
+        const existingUser = authStore.getCurrentUser();
+        if (existingUser) {
+          console.log('🔍 useAuthInit: User already exists in store:', existingUser.email);
+          // Don't override existing user, just verify the session is still valid
+          try {
+            const currentUser = await authService.getCurrentUser();
+            if (currentUser && currentUser.id === existingUser.id) {
+              console.log('✅ useAuthInit: Existing user session is valid');
+            } else if (!currentUser) {
+              console.log('⚠️ useAuthInit: Session expired, clearing user');
+              authStore.signOut();
+            }
+          } catch (error) {
+            console.log('ℹ️ useAuthInit: Session check failed, keeping existing user for now');
+          }
+        } else {
+          // No existing user, try to get from Supabase
+          const currentUser = await authService.getCurrentUser();
+          console.log('🔍 useAuthInit: Initial user check:', currentUser ? 'Present' : 'None');
+          
+          if (currentUser && mounted) {
+            authStore.setUser(currentUser);
+            console.log('✅ useAuthInit: User restored from session');
+          } else if (mounted) {
+            console.log('ℹ️ useAuthInit: No session found');
+          }
         }
       } catch (error) {
         console.error('❌ useAuthInit: Error getting initial user:', error);
@@ -165,6 +183,27 @@ export const useAuthInit = () => {
         if (!mounted) return;
 
         switch (event) {
+          case 'INITIAL_SESSION':
+            console.log('🚀 Initial session event:', !!session);
+            // Only handle initial session if we don't already have a user
+            if (!authStore.getCurrentUser()) {
+              if (session?.user) {
+                console.log('✅ Initial session has valid user, setting in store');
+                const userData = {
+                  id: session.user.id,
+                  email: session.user.email || '',
+                  name: session.user.user_metadata?.name || '',
+                  createdAt: session.user.created_at || '',
+                };
+                authStore.setUser(userData);
+              } else {
+                console.log('ℹ️ Initial session has no user');
+              }
+            } else {
+              console.log('ℹ️ User already exists in store, ignoring initial session');
+            }
+            break;
+            
           case 'SIGNED_IN':
             console.log('✅ User signed in via auth state change');
             if (session?.user) {

@@ -46,20 +46,6 @@ export default function HomeScreen() {
             <Text className="text-3xl font-bold text-text-primary">Find Your Dream Home</Text>
             <Text className="text-text-secondary text-base mt-1">Discover amazing properties</Text>
           </View>
-          <View className="flex-row space-x-3">
-            <TouchableOpacity 
-              className="w-12 h-12 bg-primary-50 rounded-full justify-center items-center shadow-sm"
-              onPress={handleSearchPress}
-            >
-              <Ionicons name="search" size={22} color="#007C91" />
-            </TouchableOpacity>
-            <TouchableOpacity 
-              className="w-12 h-12 bg-accent/10 rounded-full justify-center items-center shadow-sm"
-              onPress={handleWishlistPress}
-            >
-              <Ionicons name="heart-outline" size={22} color="#F97316" />
-            </TouchableOpacity>
-          </View>
         </View>
       </View>
 
