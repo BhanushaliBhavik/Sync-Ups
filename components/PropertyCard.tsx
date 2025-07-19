@@ -2,7 +2,7 @@ import { useWishlistStatus } from '@/hooks/useWishlist';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React from 'react';
-import { Text, TouchableOpacity, View } from 'react-native';
+import { Image, Text, TouchableOpacity, View } from 'react-native';
 
 interface PropertyCardProps {
   property: {
@@ -91,22 +91,29 @@ export default function PropertyCard({ property, onViewDetails }: PropertyCardPr
     }
   };
 
+  const imageUrl = getPrimaryImage();
+
   return (
     <View className="bg-white rounded-3xl shadow-xl overflow-hidden border border-gray-100 mb-4">
       {/* Image Section */}
       <View className="relative">
-        <View className="w-full h-56 bg-gradient-to-br from-blue-50 to-indigo-100 justify-center items-center">
-          {getPrimaryImage() ? (
-            <View className="w-full h-full bg-gray-200 justify-center items-center">
-              <View className="bg-white bg-opacity-90 px-4 py-2 rounded-full">
-                <Text className="text-gray-600 text-sm font-medium">Property Image</Text>
-              </View>
-            </View>
+        <View className="w-full h-56 bg-gradient-to-br from-blue-50 to-indigo-100">
+          {imageUrl ? (
+            <Image
+              source={{ uri: imageUrl }}
+              className="w-full h-full"
+              resizeMode="cover"
+              onError={(error) => {
+                console.log('Property image failed to load:', error);
+              }}
+              onLoad={() => {
+                console.log('Property image loaded successfully:', imageUrl);
+              }}
+            />
           ) : (
-            <View className="bg-white bg-opacity-95 px-6 py-3 rounded-2xl shadow-sm">
-              <Text className="text-gray-700 text-lg font-bold text-center">
-                {property.title?.split(' ')[0] || 'Property'}
-              </Text>
+            <View className="w-full h-full justify-center items-center bg-gray-200">
+              <Ionicons name="home-outline" size={48} color="#9CA3AF" />
+              <Text className="text-gray-500 text-sm mt-2">No Image Available</Text>
             </View>
           )}
         </View>
