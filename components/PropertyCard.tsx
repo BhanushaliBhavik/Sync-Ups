@@ -50,7 +50,13 @@ interface PropertyCardProps {
 }
 
 export default function PropertyCard({ property, onViewDetails, onWishlistChange }: PropertyCardProps) {
-  const router = useRouter();
+  // Use router safely - handle cases where navigation context isn't ready
+  let router: any = null;
+  try {
+    router = useRouter();
+  } catch (error) {
+    console.warn('Navigation context not available yet in PropertyCard. This is normal during app initialization.');
+  }
   
   // Use wishlist status hook
   const { 
@@ -94,50 +100,9 @@ export default function PropertyCard({ property, onViewDetails, onWishlistChange
     return parts.join(', ');
   };
 
-  // Enhanced function to get property images - handles multiple formats
-  const getPropertyImages = () => {
-    // Case 1: property_images is an array (standard format)
-    if (property.property_images && Array.isArray(property.property_images)) {
-      return property.property_images;
-    }
-    
-    // Case 2: property_images is a single string
-    if (property.property_images && typeof property.property_images === 'string') {
-      return [{ image_url: property.property_images, is_primary: true }];
-    }
-    
-    // Case 3: Check for single 'image' field (alternative format)
-    if ((property as any).image && typeof (property as any).image === 'string') {
-      return [{ image_url: (property as any).image, is_primary: true }];
-    }
-    
-    // Case 4: Check for 'image_url' field (alternative format)
-    if ((property as any).image_url && typeof (property as any).image_url === 'string') {
-      return [{ image_url: (property as any).image_url, is_primary: true }];
-    }
-    
-    // Case 5: Check for 'images' field that could be array or string
-    const imagesProp = (property as any).images;
-    if (imagesProp) {
-      if (Array.isArray(imagesProp)) {
-        return imagesProp.map((img: string | { image_url: string; is_primary?: boolean }) => {
-          if (typeof img === 'string') {
-            return { image_url: img, is_primary: false };
-          }
-          return img;
-        });
-      } else if (typeof imagesProp === 'string') {
-        return [{ image_url: imagesProp, is_primary: true }];
-      }
-    }
-    
-    return [];
-  };
-
   const getPrimaryImage = () => {
-    const images = getPropertyImages();
-    const primaryImage = images.find((img: any) => img.is_primary);
-    return primaryImage?.image_url || images[0]?.image_url || null;
+    const primaryImage = property.property_images?.find(img => img.is_primary);
+    return primaryImage?.image_url || property.property_images?.[0]?.image_url || null;
   };
 
   const getPropertyTypeLabel = () => {
@@ -160,24 +125,29 @@ export default function PropertyCard({ property, onViewDetails, onWishlistChange
   const handleViewDetails = () => {
     if (onViewDetails) {
       onViewDetails(property.id);
+    } else if (router) {
+      try {
+        router.push({
+          pathname: '/PropertyDetailScreen',
+          params: { id: property.id }
+        });
+      } catch (error) {
+        console.warn('Navigation context not ready yet. This is normal during app initialization.');
+        // Navigation will work once the app is fully loaded
+      }
     } else {
-      router.push({
-        pathname: '/PropertyDetailScreen',
-        params: { id: property.id }
-      });
+      console.warn('Router not available yet. Navigation will work once the app is fully loaded.');
     }
   };
 
   const imageUrl = getPrimaryImage();
   
-  // Debug logging to understand the image data
-  console.log('🖼️ PropertyCard Debug - Property ID:', property.id);
-  console.log('🖼️ PropertyCard Debug - All property keys:', Object.keys(property));
-  console.log('🖼️ PropertyCard Debug - property_images:', property.property_images);
-  console.log('🖼️ PropertyCard Debug - property.image:', (property as any).image);
-  console.log('🖼️ PropertyCard Debug - property.image_url:', (property as any).image_url);
-  console.log('🖼️ PropertyCard Debug - property.images:', (property as any).images);
-  console.log('🖼️ PropertyCard Debug - Final imageUrl:', imageUrl);
+  // Debugging to understand image issues
+  console.log('🖼️ PropertyCard - Property ID:', property.id);
+  console.log('🖼️ PropertyCard - property_images:', property.property_images);
+  console.log('🖼️ PropertyCard - Final imageUrl:', imageUrl);
+  console.log('🖼️ PropertyCard - Image will render:', !!imageUrl);
+  
   const handleOpenMap = async () => {
     if (!property.latitude || !property.longitude) {
       Alert.alert(
@@ -218,7 +188,7 @@ export default function PropertyCard({ property, onViewDetails, onWishlistChange
         <View style={{ width: '100%', height: 224, backgroundColor: '#E5E7EB', overflow: 'hidden' }}>
           {imageUrl ? (
             <>
-              {console.log('🖼️ Rendering Image component with URL:', imageUrl)}
+              {console.log('🖼️ PropertyCard - Rendering Image with URL:', imageUrl)}
               <Image
                 source={{ uri: imageUrl }}
                 style={{ 
@@ -227,26 +197,36 @@ export default function PropertyCard({ property, onViewDetails, onWishlistChange
                   backgroundColor: '#E5E7EB'
                 }}
                 resizeMode="cover"
-                onError={(error) => {
-                  console.log('❌ Property image failed to load:', error);
-                  console.log('❌ Failed URL:', imageUrl);
-                  console.log('❌ Error details:', JSON.stringify(error));
+                onLoadStart={() => {
+                  console.log('🔄 PropertyCard - Image load started:', imageUrl);
                 }}
                 onLoad={(event) => {
-                  console.log('✅ Property image loaded successfully:', imageUrl);
-                  console.log('✅ Image dimensions:', event.nativeEvent);
+                  console.log('✅ PropertyCard - Image loaded successfully:', imageUrl);
+                  console.log('✅ PropertyCard - Image dimensions:', event.nativeEvent);
                 }}
-                onLoadStart={() => {
-                  console.log('🔄 Started loading image:', imageUrl);
+                onError={(error) => {
+                  console.log('❌ PropertyCard - Image failed to load:', error);
+                  console.log('❌ PropertyCard - Failed URL:', imageUrl);
+                  console.log('❌ PropertyCard - Trying fallback test image...');
                 }}
                 onLoadEnd={() => {
-                  console.log('🔚 Finished loading image (success or fail):', imageUrl);
+                  console.log('🔚 PropertyCard - Image load ended:', imageUrl);
                 }}
               />
+              
+              {/* Test image overlay to verify Image component works */}
+              <View style={{ position: 'absolute', bottom: 4, left: 4, backgroundColor: 'rgba(0,0,0,0.7)', padding: 4, borderRadius: 4 }}>
+                <Image
+                  source={{ uri: 'https://via.placeholder.com/50x50/FF0000/FFFFFF?text=TEST' }}
+                  style={{ width: 30, height: 30 }}
+                  onLoad={() => console.log('✅ Test image loaded - Image component works!')}
+                  onError={() => console.log('❌ Test image failed - Network or Image component issue')}
+                />
+              </View>
             </>
           ) : (
             <>
-              {console.log('❌ No imageUrl found, showing placeholder')}
+              {console.log('❌ PropertyCard - No imageUrl, showing placeholder')}
               <View style={{ 
                 width: '100%', 
                 height: 224, 

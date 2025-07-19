@@ -51,9 +51,50 @@ const PropertyCard = ({
     return parts.join(', ');
   };
 
-  const getPrimaryImage = () => {
-    const primaryImage = property.property_images?.find((img: any) => img.is_primary);
-    return primaryImage?.image_url || property.property_images?.[0]?.image_url || null;
+  // Enhanced function to get property images - handles multiple formats
+  const getPropertyImages = (property: any) => {
+    // Case 1: property_images is an array (standard format)
+    if (property.property_images && Array.isArray(property.property_images)) {
+      return property.property_images;
+    }
+    
+    // Case 2: property_images is a single string
+    if (property.property_images && typeof property.property_images === 'string') {
+      return [{ image_url: property.property_images, is_primary: true }];
+    }
+    
+    // Case 3: Check for single 'image' field (alternative format)
+    if (property.image && typeof property.image === 'string') {
+      return [{ image_url: property.image, is_primary: true }];
+    }
+    
+    // Case 4: Check for 'image_url' field (alternative format)
+    if (property.image_url && typeof property.image_url === 'string') {
+      return [{ image_url: property.image_url, is_primary: true }];
+    }
+    
+    // Case 5: Check for 'images' field that could be array or string
+    const imagesProp = property.images;
+    if (imagesProp) {
+      if (Array.isArray(imagesProp)) {
+        return imagesProp.map((img: string | { image_url: string; is_primary?: boolean }) => {
+          if (typeof img === 'string') {
+            return { image_url: img, is_primary: false };
+          }
+          return img;
+        });
+      } else if (typeof imagesProp === 'string') {
+        return [{ image_url: imagesProp, is_primary: true }];
+      }
+    }
+    
+    return [];
+  };
+
+  const getPrimaryImage = (property: any) => {
+    const images = getPropertyImages(property);
+    const primaryImage = images.find((img: any) => img.is_primary);
+    return primaryImage?.image_url || images[0]?.image_url || null;
   };
 
   const handlePropertyPress = () => {
@@ -88,26 +129,41 @@ const PropertyCard = ({
             activeOpacity={0.8}
           >
             <View className={`relative w-24 h-24 bg-gradient-to-br from-primary-100 to-secondary-100 rounded-xl justify-center items-center ${isSelected ? 'ring-2 ring-primary-500 ring-offset-2' : ''}`}>
-              {getPrimaryImage() ? (
-                <Image
-                  source={{ uri: getPrimaryImage()! }}
-                  style={{ 
-                    width: 96, // w-24 = 24 * 4 = 96px
-                    height: 96, // h-24 = 24 * 4 = 96px
-                    borderRadius: 12 // rounded-xl
-                  }}
-                  resizeMode="cover"
-                  onError={(error) => {
-                    console.log('❌ Wishlist image failed to load:', error);
-                  }}
-                  onLoad={() => {
-                    console.log('✅ Wishlist image loaded successfully');
-                  }}
-                />
+              {getPrimaryImage(property) ? (
+                <>
+                  {console.log('🖼️ Wishlist - Property ID:', property.id)}
+                  {console.log('🖼️ Wishlist - property_images:', property.property_images)}
+                  {console.log('🖼️ Wishlist - Primary image URL:', getPrimaryImage(property))}
+                  <Image
+                    source={{ uri: getPrimaryImage(property)! }}
+                    style={{ 
+                      width: 96, // w-24 = 24 * 4 = 96px
+                      height: 96, // h-24 = 24 * 4 = 96px
+                      borderRadius: 12 // rounded-xl
+                    }}
+                    resizeMode="cover"
+                    onError={(error: any) => {
+                      console.log('❌ Wishlist image failed to load:', error);
+                      console.log('❌ Wishlist failed URL:', getPrimaryImage(property));
+                    }}
+                    onLoad={() => {
+                      console.log('✅ Wishlist image loaded successfully');
+                    }}
+                    onLoadStart={() => {
+                      console.log('🔄 Wishlist image load started');
+                    }}
+                    onLoadEnd={() => {
+                      console.log('🔚 Wishlist image load ended');
+                    }}
+                  />
+                </>
               ) : (
-                <View className="bg-surface bg-opacity-90 px-3 py-1 rounded-lg">
-                  <Text className="text-text-secondary text-xs font-semibold text-center">{property.title?.split(' ')[0] || 'Property'}</Text>
-                </View>
+                <>
+                  {console.log('❌ Wishlist - No image found, showing fallback')}
+                  <View className="bg-surface bg-opacity-90 px-3 py-1 rounded-lg">
+                    <Text className="text-text-secondary text-xs font-semibold text-center">{property.title?.split(' ')[0] || 'Property'}</Text>
+                  </View>
+                </>
               )}
               <TouchableOpacity className="absolute -top-1 -right-1 w-6 h-6 bg-accent rounded-full justify-center items-center shadow-lg">
                 <Ionicons name="heart" size={12} color="#FFFFFF" />

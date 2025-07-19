@@ -173,6 +173,25 @@ export default function PropertyDetailScreen() {
   const totalImages = images.length || 1;
   const hasImages = images.length > 0;
 
+  // Debug logging for property detail images
+  console.log('🖼️ PropertyDetailScreen - Property ID:', id);
+  console.log('🖼️ PropertyDetailScreen - Raw property data keys:', property ? Object.keys(property) : 'No property');
+  console.log('🖼️ PropertyDetailScreen - property_images:', property?.property_images);
+  console.log('🖼️ PropertyDetailScreen - Processed images:', images);
+  console.log('🖼️ PropertyDetailScreen - hasImages:', hasImages);
+  console.log('🖼️ PropertyDetailScreen - Current image index:', currentImage);
+
+  // Single Stack.Screen header definition for all states
+  const headerTitle = property?.title || "Property Detail";
+  const headerOptions = {
+    title: headerTitle,
+    headerRight: () => (
+      <TouchableOpacity style={{ marginRight: 16 }}>
+        <Ionicons name="heart-outline" size={24} color="#374151" />
+      </TouchableOpacity>
+    ),
+  };
+
   // Calculate EMI when inputs change
   const calculateEMI = useCallback(() => {
     const principal = parseFloat(loanAmount.replace(/,/g, '')) || 0;
@@ -291,14 +310,7 @@ export default function PropertyDetailScreen() {
   if (loading) {
     return (
       <>
-        <Stack.Screen name='PropertyDetailScreen' options={{
-          title: "Property Detail",
-          headerRight: () => (
-            <TouchableOpacity style={{ marginRight: 16 }}>
-              <Ionicons name="heart-outline" size={24} color="#374151" />
-            </TouchableOpacity>
-          ),
-        }} />
+        <Stack.Screen name='PropertyDetailScreen' options={headerOptions} />
         <SafeAreaView style={styles.container}>
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#007C91" />
@@ -313,14 +325,7 @@ export default function PropertyDetailScreen() {
   if (error || !property) {
     return (
       <>
-        <Stack.Screen name='PropertyDetailScreen' options={{
-          title: "Property Detail",
-          headerRight: () => (
-            <TouchableOpacity style={{ marginRight: 16 }}>
-              <Ionicons name="heart-outline" size={24} color="#374151" />
-            </TouchableOpacity>
-          ),
-        }} />
+        <Stack.Screen name='PropertyDetailScreen' options={headerOptions} />
         <SafeAreaView style={styles.container}>
           <View style={styles.errorContainer}>
             <Ionicons name="alert-circle-outline" size={64} color="#EF4444" />
@@ -337,201 +342,194 @@ export default function PropertyDetailScreen() {
 
   return (
     <>
-    <Stack.Screen name='PropertyDetailScreen' options={{
-        title: property.title || "Property Detail",
-    headerRight: () => (
-      <TouchableOpacity style={{ marginRight: 16 }}>
-        <Ionicons name="heart-outline" size={24} color="#374151" />
-      </TouchableOpacity>
-    ),
-    }} />
-    <KeyboardAvoidingView 
-      style={styles.container} 
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
-    >
-      <SafeAreaView style={styles.safeArea}>
-        <ScrollView 
-          style={styles.scrollView} 
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          contentContainerStyle={styles.scrollContent}
-        >
-          {/* Property Image Gallery */}
-          <View style={styles.imageGallery}>
-            {hasImages ? (
-              <View style={styles.imageContainer}>
-                <Image
-                  source={{ uri: images[currentImage]?.image_url }}
-                  style={styles.propertyImage}
-                  resizeMode="cover"
-                  onError={(error) => {
-                    console.log('Property detail image failed to load:', error);
-                  }}
-                  onLoad={() => {
-                    console.log('Property detail image loaded:', images[currentImage]?.image_url);
-                  }}
-                />
-                
-                {/* Image navigation buttons */}
-                {images.length > 1 && (
-                  <>
-                    <TouchableOpacity 
-                      style={styles.imageNavButton}
-                      onPress={() => setCurrentImage(prev => prev > 0 ? prev - 1 : images.length - 1)}
-                    >
-                      <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
-                    </TouchableOpacity>
-                    
-                    <TouchableOpacity 
-                      style={[styles.imageNavButton, styles.imageNavButtonRight]}
-                      onPress={() => setCurrentImage(prev => prev < images.length - 1 ? prev + 1 : 0)}
-                    >
-                      <Ionicons name="chevron-forward" size={24} color="#FFFFFF" />
-                    </TouchableOpacity>
-                  </>
-                )}
+      <Stack.Screen name='PropertyDetailScreen' options={headerOptions} />
+      <KeyboardAvoidingView 
+        style={styles.container} 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      >
+        <SafeAreaView style={styles.safeArea}>
+          <ScrollView 
+            style={styles.scrollView} 
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={styles.scrollContent}
+          >
+            {/* Property Image Gallery */}
+            <View style={styles.imageGallery}>
+              {hasImages ? (
+                <View style={styles.imageContainer}>
+                  <Image
+                    source={{ uri: images[currentImage]?.image_url }}
+                    style={styles.propertyImage}
+                    resizeMode="cover"
+                    onError={(error) => {
+                      console.log('Property detail image failed to load:', error);
+                    }}
+                    onLoad={() => {
+                      console.log('Property detail image loaded:', images[currentImage]?.image_url);
+                    }}
+                  />
+                  
+                  {/* Image navigation buttons */}
+                  {images.length > 1 && (
+                    <>
+                      <TouchableOpacity 
+                        style={styles.imageNavButton}
+                        onPress={() => setCurrentImage(prev => prev > 0 ? prev - 1 : images.length - 1)}
+                      >
+                        <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
+                      </TouchableOpacity>
+                      
+                      <TouchableOpacity 
+                        style={[styles.imageNavButton, styles.imageNavButtonRight]}
+                        onPress={() => setCurrentImage(prev => prev < images.length - 1 ? prev + 1 : 0)}
+                      >
+                        <Ionicons name="chevron-forward" size={24} color="#FFFFFF" />
+                      </TouchableOpacity>
+                    </>
+                  )}
+                </View>
+              ) : (
+                <View style={styles.imageContainer}>
+                  <Ionicons name="home-outline" size={64} color="#9CA3AF" />
+                  <Text style={styles.noImageText}>No Images Available</Text>
+                </View>
+              )}
+              
+              {/* Pagination Dots */}
+              <View style={styles.paginationDots}>
+                {Array.from({ length: Math.min(totalImages, 5) }).map((_, index) => (
+                  <TouchableOpacity 
+                    key={index} 
+                    style={[
+                      styles.dot, 
+                      index === currentImage ? styles.activeDot : {}
+                    ]}
+                    onPress={() => setCurrentImage(index)}
+                  />
+                ))}
               </View>
-            ) : (
-              <View style={styles.imageContainer}>
-                <Ionicons name="home-outline" size={64} color="#9CA3AF" />
-                <Text style={styles.noImageText}>No Images Available</Text>
+              
+              {/* Image Counter */}
+              <View style={styles.imageCounter}>
+                <Text style={styles.imageCounterText}>{currentImage + 1}/{totalImages}</Text>
               </View>
-            )}
-            
-            {/* Pagination Dots */}
-            <View style={styles.paginationDots}>
-              {Array.from({ length: Math.min(totalImages, 5) }).map((_, index) => (
-                <TouchableOpacity 
-                  key={index} 
-                  style={[
-                    styles.dot, 
-                    index === currentImage ? styles.activeDot : {}
-                  ]}
-                  onPress={() => setCurrentImage(index)}
-                />
-              ))}
             </View>
-            
-            {/* Image Counter */}
-            <View style={styles.imageCounter}>
-              <Text style={styles.imageCounterText}>{currentImage + 1}/{totalImages}</Text>
-            </View>
-          </View>
 
-          {/* Property Overview */}
-          <View style={styles.propertyOverview}>
-            <Text style={styles.propertyPrice}>{formatPrice(property.price)}</Text>
-            
-            <View style={styles.propertySpecs}>
-              <Text style={styles.specText}>{formatSpecs(property)}</Text>
+            {/* Property Overview */}
+            <View style={styles.propertyOverview}>
+              <Text style={styles.propertyPrice}>{formatPrice(property.price)}</Text>
+              
+              <View style={styles.propertySpecs}>
+                <Text style={styles.specText}>{formatSpecs(property)}</Text>
+              </View>
+              
+              <Text style={styles.propertyName}>{property.title}</Text>
+              <Text style={styles.propertyLocation}>{formatLocation(property)}</Text>
             </View>
-            
-            <Text style={styles.propertyName}>{property.title}</Text>
-            <Text style={styles.propertyLocation}>{formatLocation(property)}</Text>
-          </View>
 
-          {/* Interactive Tools - Section 1 */}
-          <View style={styles.toolsSection}>
-            <ToolCard
-              title="EMI Calculator"
-              subtitle="Calculate monthly payment"
-              icon="calculator-outline"
-              onPress={() => {}}
-              />
-            
-            <View style={styles.actionButtons}>
-              <ActionButton
-                title="Call Now"
-                icon="call-outline"
-                onPress={() => {}}
-              />
-              <ActionButton
-                title="Chat"
-                icon="chatbubble-outline"
+            {/* Interactive Tools - Section 1 */}
+            <View style={styles.toolsSection}>
+              <ToolCard
+                title="EMI Calculator"
+                subtitle="Calculate monthly payment"
+                icon="calculator-outline"
                 onPress={() => {}}
                 />
+              
+              <View style={styles.actionButtons}>
+                <ActionButton
+                  title="Call Now"
+                  icon="call-outline"
+                  onPress={() => {}}
+                />
+                <ActionButton
+                  title="Chat"
+                  icon="chatbubble-outline"
+                  onPress={() => {}}
+                  />
+              </View>
             </View>
-          </View>
 
-          {/* Interactive Tools - Section 2 */}
-          <View style={styles.viewersSection}>
-            <ToolCard
-              title="3D Viewer"
-              subtitle="Virtual Tour"
-              icon="cube-outline"
-              onPress={() => {}}
+            {/* Interactive Tools - Section 2 */}
+            <View style={styles.viewersSection}>
+              <ToolCard
+                title="3D Viewer"
+                subtitle="Virtual Tour"
+                icon="cube-outline"
+                onPress={() => {}}
+                />
+              <ToolCard
+                title="Nearby Map"
+                subtitle="Location View"
+                icon="location-outline"
+                onPress={handleOpenMap}
               />
-            <ToolCard
-              title="Nearby Map"
-              subtitle="Location View"
-              icon="location-outline"
-              onPress={handleOpenMap}
-            />
-          </View>
+            </View>
 
-          {/* AI Insight Section */}
-          <View style={styles.aiInsightCard}>
-            <View style={styles.aiInsightHeader}>
-              <View style={styles.aiInsightIcon}>
-                <Ionicons name="information-circle" size={24} color="#FFFFFF" />
-              </View>
-              <View style={styles.aiInsightContent}>
-                <Text style={styles.aiInsightTitle}>AI Insight: Why this is a good match</Text>
-                <Text style={styles.aiInsightDescription}>
-                  Based on your preferences, this property offers excellent connectivity, top-rated schools nearby, and strong appreciation potential in the {property.city} area.
-                </Text>
+            {/* AI Insight Section */}
+            <View style={styles.aiInsightCard}>
+              <View style={styles.aiInsightHeader}>
+                <View style={styles.aiInsightIcon}>
+                  <Ionicons name="information-circle" size={24} color="#FFFFFF" />
+                </View>
+                <View style={styles.aiInsightContent}>
+                  <Text style={styles.aiInsightTitle}>AI Insight: Why this is a good match</Text>
+                  <Text style={styles.aiInsightDescription}>
+                    Based on your preferences, this property offers excellent connectivity, top-rated schools nearby, and strong appreciation potential in the {property.city} area.
+                  </Text>
+                </View>
               </View>
             </View>
-          </View>
 
-          {/* Mortgage Calculator */}
-          <View style={styles.mortgageCard}>
-            <View style={styles.mortgageHeader}>
-              <Ionicons name="calculator-outline" size={24} color="#374151" />
-              <Text style={styles.mortgageTitle}>Mortgage Calculator</Text>
-            </View>
-            
-            <InputField
-              label="Loan Amount"
-              value={loanAmount}
-              suffix="₹"
-              onChangeText={handleLoanAmountChange}
+            {/* Mortgage Calculator */}
+            <View style={styles.mortgageCard}>
+              <View style={styles.mortgageHeader}>
+                <Ionicons name="calculator-outline" size={24} color="#374151" />
+                <Text style={styles.mortgageTitle}>Mortgage Calculator</Text>
+              </View>
+              
+              <InputField
+                label="Loan Amount"
+                value={loanAmount}
+                suffix="₹"
+                onChangeText={handleLoanAmountChange}
+                />
+              
+              <InputField
+                label="Interest Rate"
+                value={interestRate}
+                suffix="%"
+                onChangeText={handleInterestRateChange}
               />
-            
-            <InputField
-              label="Interest Rate"
-              value={interestRate}
-              suffix="%"
-              onChangeText={handleInterestRateChange}
-            />
-            
-            <InputField
-              label="Tenure"
-              value={tenure}
-              suffix="yrs"
-              onChangeText={handleTenureChange}
-            />
-            
-            <View style={styles.emiResult}>
-              <View style={styles.emiResultRow}>
-                <Text style={styles.emiResultLabel}>Monthly EMI:</Text>
-                <Text style={styles.emiResultValue}>{formatCurrency(emiAmount)}</Text>
-              </View>
-              <View style={styles.emiResultRow}>
-                <Text style={styles.emiResultLabel}>Total Amount:</Text>
-                <Text style={styles.emiResultValue}>{formatCurrency(totalAmount)}</Text>
-              </View>
-              <View style={styles.emiResultRow}>
-                <Text style={styles.emiResultLabel}>Total Interest:</Text>
-                <Text style={styles.emiResultValue}>{formatCurrency(totalInterest)}</Text>
+              
+              <InputField
+                label="Tenure"
+                value={tenure}
+                suffix="yrs"
+                onChangeText={handleTenureChange}
+              />
+              
+              <View style={styles.emiResult}>
+                <View style={styles.emiResultRow}>
+                  <Text style={styles.emiResultLabel}>Monthly EMI:</Text>
+                  <Text style={styles.emiResultValue}>{formatCurrency(emiAmount)}</Text>
+                </View>
+                <View style={styles.emiResultRow}>
+                  <Text style={styles.emiResultLabel}>Total Amount:</Text>
+                  <Text style={styles.emiResultValue}>{formatCurrency(totalAmount)}</Text>
+                </View>
+                <View style={styles.emiResultRow}>
+                  <Text style={styles.emiResultLabel}>Total Interest:</Text>
+                  <Text style={styles.emiResultValue}>{formatCurrency(totalInterest)}</Text>
+                </View>
               </View>
             </View>
-          </View>
-        </ScrollView>
-      </SafeAreaView>
-    </KeyboardAvoidingView>
-  </>
+          </ScrollView>
+        </SafeAreaView>
+      </KeyboardAvoidingView>
+    </>
   );
 }
 

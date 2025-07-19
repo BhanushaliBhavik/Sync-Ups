@@ -263,7 +263,7 @@ export default function SearchScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-background">
-      <ScrollView className="flex-1 bg-red" showsVerticalScrollIndicator={false}>
+      <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
         {/* Search Bar */}
         <View className="bg-surface px-6 py-6 shadow-sm border-b border-border">
           <View className="flex-row items-center bg-white rounded-2xl px-5 py-4 shadow-sm border-2 border-border">
