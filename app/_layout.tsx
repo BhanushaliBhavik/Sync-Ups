@@ -11,14 +11,45 @@ export default function RootLayout() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <Stack>
+      <Stack
+        screenOptions={{
+          headerStyle: {
+            backgroundColor: '#FFFFFF',
+          },
+          headerTitleStyle: {
+            fontWeight: 'bold',
+            fontSize: 18,
+          },
+          headerTintColor: '#000000',
+        }}
+      >
         <Stack.Screen name="index" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="auth" options={{ headerShown: false }} />
-        <Stack.Screen name="property-preferences" options={{ title: 'Property Preferences', headerShown: false }} />
-        <Stack.Screen name="property/[id]" options={{ title: 'Property Detail' }} />
-        <Stack.Screen name="compare" options={{ title: 'Compare Properties' }} />
-        <Stack.Screen name="debug-auth" options={{ title: 'Auth Debug', presentation: 'modal' }} />
+        <Stack.Screen 
+          name="property-preferences" 
+          options={{ 
+            title: 'Property Preferences',
+            headerShown: true,
+            headerBackTitle: 'Back'
+          }} 
+        />
+        <Stack.Screen 
+          name="property/[id]" 
+          options={{ 
+            title: 'Property Details',
+            headerShown: true,
+            headerBackTitle: 'Back'
+          }} 
+        />
+        <Stack.Screen 
+          name="compare" 
+          options={{ 
+            title: 'Compare Properties',
+            headerShown: true,
+            headerBackTitle: 'Back'
+          }} 
+        />
       </Stack>
     </QueryClientProvider>
   );

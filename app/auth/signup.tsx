@@ -7,10 +7,11 @@ import { useAppleSignIn, useAuthStore, useGoogleSignIn, useSignUp } from '../../
 import { navigationService } from '../../services/navigationService';
 
 export default function SignUp() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const signUpMutation = useSignUp();
   const googleSignInMutation = useGoogleSignIn();
   const appleSignInMutation = useAppleSignIn();
@@ -150,24 +151,42 @@ export default function SignUp() {
   const isLoading = signUpMutation.isPending || googleSignInMutation.isPending || appleSignInMutation.isPending;
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaView className="flex-1 bg-background">
       <KeyboardAvoidingView 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         className="flex-1"
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+        enabled={true}
       >
         <ScrollView 
           className="flex-1"
-          contentContainerStyle={{ flexGrow: 1 }}
+          contentContainerStyle={{ 
+            flexGrow: 1,
+            paddingBottom: Platform.OS === 'ios' ? 0 : 20
+          }}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
+          bounces={false}
+          nestedScrollEnabled={Platform.OS === 'android'}
+          keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+          automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
         >
-          <View className="flex-1 px-6 py-8">
+          <View className="flex-1 px-6 py-6">
+            {/* Debug Info for Platform-specific Keyboard - Dev Mode */}
+            {__DEV__ && (
+              <View className={`mb-4 p-3 rounded-lg border ${Platform.OS === 'ios' ? 'bg-blue-50 border-blue-200' : 'bg-yellow-50 border-yellow-200'}`}>
+                <Text className={`text-xs text-center font-semibold ${Platform.OS === 'ios' ? 'text-blue-800' : 'text-yellow-800'}`}>
+                  {Platform.OS === 'ios' ? '🍎 iOS: padding + automaticallyAdjustKeyboardInsets' : '🤖 Android: height + adjustResize'}
+                </Text>
+              </View>
+            )}
+            
             {/* Header */}
-            <View className="mb-8 mt-4">
-              <Text className="text-3xl font-bold text-gray-900 mb-2">
+            <View className="mb-6">
+              <Text className="text-3xl font-bold text-text-primary mb-2">
                 Create Account
               </Text>
-              <Text className="text-gray-600 text-lg">
+              <Text className="text-text-secondary text-lg">
                 Join us to find your perfect home
               </Text>
               
@@ -200,49 +219,49 @@ export default function SignUp() {
             )}
 
             {/* OAuth Buttons - Temporarily disabled until configured */}
-            <View className="mb-8">
+            <View className="mb-6">
               {/* Google Sign In - Disabled */}
               <TouchableOpacity
-                className="w-full p-4 mb-4 border border-gray-300 rounded-xl flex-row justify-center items-center bg-gray-100 shadow-sm opacity-50"
+                className="w-full p-4 mb-3 border border-border rounded-xl flex-row justify-center items-center bg-gray-100 shadow-sm opacity-50"
                 activeOpacity={0.8}
                 disabled={true}
               >
-                <Ionicons name="logo-google" size={20} color="#9CA3AF" />
-                <Text className="text-gray-500 font-semibold text-base ml-3">
+                <Ionicons name="logo-google" size={20} color="#6B7280" />
+                <Text className="text-text-secondary font-semibold text-base ml-3">
                   Google Sign-Up (Setup Required)
                 </Text>
               </TouchableOpacity>
 
               {/* Apple Sign In - Disabled */}
               <TouchableOpacity
-                className="w-full p-4 border border-gray-300 rounded-xl flex-row justify-center items-center bg-gray-100 shadow-sm opacity-50"
+                className="w-full p-4 border border-border rounded-xl flex-row justify-center items-center bg-gray-100 shadow-sm opacity-50"
                 activeOpacity={0.8}
                 disabled={true}
               >
-                <Ionicons name="logo-apple" size={20} color="#9CA3AF" />
-                <Text className="text-gray-500 font-semibold text-base ml-3">
+                <Ionicons name="logo-apple" size={20} color="#6B7280" />
+                <Text className="text-text-secondary font-semibold text-base ml-3">
                   Apple Sign-Up (Setup Required)
                 </Text>
               </TouchableOpacity>
             </View>
 
             {/* Divider */}
-            <View className="flex-row items-center mb-8">
-              <View className="flex-1 h-px bg-gray-300" />
-              <Text className="mx-4 text-gray-500 font-medium">or</Text>
-              <View className="flex-1 h-px bg-gray-300" />
+            <View className="flex-row items-center mb-6">
+              <View className="flex-1 h-px bg-border" />
+              <Text className="mx-4 text-text-secondary font-medium">or</Text>
+              <View className="flex-1 h-px bg-border" />
             </View>
 
             {/* Email/Password Form */}
-            <View className="mb-8">
+            <View className="mb-6">
               {/* Name Fields */}
-              <View className="flex-row gap-4 mb-6">
+              <View className="flex-row gap-4 mb-5">
                 <View className="flex-1">
-                  <Text className="text-gray-700 font-semibold mb-3">First Name</Text>
+                  <Text className="text-text-primary font-semibold mb-3">First Name</Text>
                   <TextInput
-                    className="w-full p-4 border border-gray-300 rounded-xl bg-white text-gray-900 text-base"
+                    className="w-full p-4 border border-border rounded-xl bg-surface text-text-primary text-base"
                     placeholder="First name"
-                    placeholderTextColor="#9CA3AF"
+                    placeholderTextColor="#6B7280"
                     value={firstName}
                     onChangeText={(text) => {
                       setFirstName(text);
@@ -251,14 +270,15 @@ export default function SignUp() {
                     autoCapitalize="words"
                     autoCorrect={false}
                     editable={!isLoading}
+                    returnKeyType="next"
                   />
                 </View>
                 <View className="flex-1">
-                  <Text className="text-gray-700 font-semibold mb-3">Last Name</Text>
+                  <Text className="text-text-primary font-semibold mb-3">Last Name</Text>
                   <TextInput
-                    className="w-full p-4 border border-gray-300 rounded-xl bg-white text-gray-900 text-base"
+                    className="w-full p-4 border border-border rounded-xl bg-surface text-text-primary text-base"
                     placeholder="Last name"
-                    placeholderTextColor="#9CA3AF"
+                    placeholderTextColor="#6B7280"
                     value={lastName}
                     onChangeText={(text) => {
                       setLastName(text);
@@ -267,17 +287,18 @@ export default function SignUp() {
                     autoCapitalize="words"
                     autoCorrect={false}
                     editable={!isLoading}
+                    returnKeyType="next"
                   />
                 </View>
               </View>
 
               {/* Email */}
-              <View className="mb-6">
-                <Text className="text-gray-700 font-semibold mb-3">Email Address</Text>
+              <View className="mb-5">
+                <Text className="text-text-primary font-semibold mb-3">Email Address</Text>
                 <TextInput
-                  className="w-full p-4 border border-gray-300 rounded-xl bg-white text-gray-900 text-base"
+                  className="w-full p-4 border border-border rounded-xl bg-surface text-text-primary text-base"
                   placeholder="Enter your email"
-                  placeholderTextColor="#9CA3AF"
+                  placeholderTextColor="#6B7280"
                   value={email}
                   onChangeText={(text) => {
                     setEmail(text);
@@ -287,34 +308,55 @@ export default function SignUp() {
                   autoCapitalize="none"
                   autoCorrect={false}
                   editable={!isLoading}
+                  returnKeyType="next"
                 />
               </View>
 
               {/* Password */}
-              <View className="mb-8">
-                <Text className="text-gray-700 font-semibold mb-3">Password</Text>
-                <TextInput
-                  className="w-full p-4 border border-gray-300 rounded-xl bg-white text-gray-900 text-base"
-                  placeholder="Create a password"
-                  placeholderTextColor="#9CA3AF"
-                  value={password}
-                  onChangeText={(text) => {
-                    setPassword(text);
-                    if (authStore.error) authStore.clearError();
-                  }}
-                  secureTextEntry
-                  editable={!isLoading}
-                />
+              <View className="mb-6">
+                <Text className="text-text-primary font-semibold mb-3">Password</Text>
+                <View className="relative">
+                  <TextInput
+                    className="w-full p-4 pr-14 border border-border rounded-xl bg-surface text-text-primary text-base"
+                    placeholder="Create a password"
+                    placeholderTextColor="#6B7280"
+                    value={password}
+                    onChangeText={(text) => {
+                      setPassword(text);
+                      if (authStore.error) authStore.clearError();
+                    }}
+                    secureTextEntry={!showPassword}
+                    editable={!isLoading}
+                    returnKeyType="go"
+                    onSubmitEditing={() => {
+                      if (!isLoading && email.trim() && password.trim() && firstName.trim() && lastName.trim()) {
+                        onSignUpPress();
+                      }
+                    }}
+                  />
+                  {/* Password Visibility Toggle */}
+                  <TouchableOpacity
+                    className="absolute right-4 top-4"
+                    onPress={() => setShowPassword(!showPassword)}
+                    disabled={isLoading}
+                  >
+                    <Ionicons
+                      name={showPassword ? 'eye-off' : 'eye'}
+                      size={20}
+                      color="#6B7280"
+                    />
+                  </TouchableOpacity>
+                </View>
               </View>
 
               {/* Sign Up Button */}
               <TouchableOpacity
-                className={`w-full p-4 bg-blue-600 rounded-xl shadow-sm ${isLoading ? 'opacity-50' : ''}`}
+                className={`w-full p-4 bg-primary rounded-xl shadow-sm ${isLoading ? 'opacity-50' : ''}`}
                 onPress={onSignUpPress}
                 activeOpacity={0.8}
                 disabled={isLoading}
               >
-                <Text className="text-white text-center font-bold text-lg">
+                <Text className="text-surface text-center font-bold text-lg">
                   {isLoading ? 'Creating Account...' : 'Create Account'}
                 </Text>
               </TouchableOpacity>
@@ -322,19 +364,10 @@ export default function SignUp() {
 
             {/* Sign In Link */}
             <View className="flex-row justify-center items-center py-4">
-              <Text className="text-gray-600">Already have an account? </Text>
+              <Text className="text-text-secondary">Already have an account? </Text>
               <Link href="/auth/signin" asChild>
                 <TouchableOpacity disabled={isLoading}>
-                  <Text className="text-blue-600 font-semibold">Sign In</Text>
-                </TouchableOpacity>
-              </Link>
-            </View>
-
-            {/* Debug Link - Remove after setup */}
-            <View className="flex-row justify-center items-center py-2">
-              <Link href="/debug-auth" asChild>
-                <TouchableOpacity disabled={isLoading}>
-                  <Text className="text-gray-500 font-medium text-sm">Debug OAuth Issues</Text>
+                  <Text className="text-primary font-semibold">Sign In</Text>
                 </TouchableOpacity>
               </Link>
             </View>

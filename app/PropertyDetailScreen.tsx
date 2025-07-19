@@ -1,8 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Stack } from 'expo-router';
+import { Stack, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
-import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { usePropertyById } from '@/hooks/useProperties';
 
 // Interactive Tool Card Component
 const ToolCard = ({ 
@@ -76,171 +77,247 @@ const InputField = ({
   </View>
 );
 
+// Utility functions for formatting
+const formatPrice = (price: number | null) => {
+  if (!price) return 'Price on request';
+  if (price >= 1000000) {
+    return `$${(price / 1000000).toFixed(1)}M`;
+  } else if (price >= 1000) {
+    return `$${(price / 1000).toFixed(0)}K`;
+  }
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(price);
+};
+
+const formatSpecs = (property: any) => {
+  const specs = [];
+  if (property.bedrooms) specs.push(`${property.bedrooms} BHK`);
+  if (property.bathrooms) specs.push(`${property.bathrooms} bath`);
+  return specs.join(' • ');
+};
+
+const formatLocation = (property: any) => {
+  const location = [];
+  if (property.address) location.push(property.address);
+  if (property.city) location.push(property.city);
+  return location.join(', ');
+};
+
+const getPrimaryImage = (property: any) => {
+  const primaryImage = property.property_images?.find((img: any) => img.is_primary);
+  return primaryImage?.image_url || property.property_images?.[0]?.image_url || null;
+};
+
 export default function PropertyDetailScreen() {
+  const { id } = useLocalSearchParams<{ id: string }>();
   const [currentImage, setCurrentImage] = useState(1);
   const [loanAmount, setLoanAmount] = useState('96,00,000');
   const [interestRate, setInterestRate] = useState('8.5');
   const [tenure, setTenure] = useState('20');
 
-  const totalImages = 8;
+  // Fetch property data using the ID
+  const { property, loading, error, refetch } = usePropertyById(id || '', { autoFetch: !!id });
+
+  const totalImages = property?.property_images?.length || 1;
+
+  // Loading state
+  if (loading) {
+    return (
+      <>
+        <Stack.Screen name='PropertyDetailScreen' options={{
+          title: "Property Detail",
+          headerRight: () => (
+            <TouchableOpacity style={{ marginRight: 16 }}>
+              <Ionicons name="heart-outline" size={24} color="#374151" />
+            </TouchableOpacity>
+          ),
+        }} />
+        <SafeAreaView style={styles.container}>
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#007C91" />
+            <Text style={styles.loadingText}>Loading property details...</Text>
+          </View>
+        </SafeAreaView>
+      </>
+    );
+  }
+
+  // Error state
+  if (error || !property) {
+    return (
+      <>
+        <Stack.Screen name='PropertyDetailScreen' options={{
+          title: "Property Detail",
+          headerRight: () => (
+            <TouchableOpacity style={{ marginRight: 16 }}>
+              <Ionicons name="heart-outline" size={24} color="#374151" />
+            </TouchableOpacity>
+          ),
+        }} />
+        <SafeAreaView style={styles.container}>
+          <View style={styles.errorContainer}>
+            <Ionicons name="alert-circle-outline" size={64} color="#EF4444" />
+            <Text style={styles.errorTitle}>Error Loading Property</Text>
+            <Text style={styles.errorText}>{error || 'Property not found'}</Text>
+            <TouchableOpacity style={styles.retryButton} onPress={refetch}>
+              <Text style={styles.retryButtonText}>Try Again</Text>
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
+      </>
+    );
+  }
 
   return (
     <>
-    <Stack.Screen name='propertyDetailScreen' options={{
-        title: "Property Detail",
+    <Stack.Screen name='PropertyDetailScreen' options={{
+        title: property.title || "Property Detail",
     headerRight: () => (
       <TouchableOpacity style={{ marginRight: 16 }}>
         <Ionicons name="heart-outline" size={24} color="#374151" />
       </TouchableOpacity>
     ),
     }} />
-    <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {/* Header */}
-        {/* <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color="#374151" />
-          </TouchableOpacity>
-          <View style={styles.headerActions}>
-            <TouchableOpacity style={styles.headerButton}>
-            <Ionicons name="heart-outline" size={24} color="#374151" />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.headerButton}>
-              <Ionicons name="share-outline" size={24} color="#374151" />
-            </TouchableOpacity>
+    <KeyboardAvoidingView 
+      style={styles.container} 
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+    >
+      <SafeAreaView style={styles.safeArea}>
+        <ScrollView 
+          style={styles.scrollView} 
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={styles.scrollContent}
+        >
+          {/* Property Image Gallery */}
+          <View style={styles.imageGallery}>
+            {getPrimaryImage(property) ? (
+              <View style={styles.imageContainer}>
+                <Text style={styles.imageGalleryText}>Image: {getPrimaryImage(property)}</Text>
+              </View>
+            ) : (
+              <Text style={styles.imageGalleryText}>Property Image Gallery</Text>
+            )}
+            
+            {/* Pagination Dots */}
+            <View style={styles.paginationDots}>
+              {Array.from({ length: Math.min(totalImages, 3) }).map((_, index) => (
+                <View key={index} style={styles.dot} />
+              ))}
+            </View>
+            
+            {/* Image Counter */}
+            <View style={styles.imageCounter}>
+              <Text style={styles.imageCounterText}>{currentImage}/{totalImages}</Text>
+            </View>
           </View>
-        </View> */}
 
-        {/* Property Image Gallery */}
-        <View style={styles.imageGallery}>
-          <Text style={styles.imageGalleryText}>Property Image Gallery</Text>
-          
-          {/* Pagination Dots */}
-          <View style={styles.paginationDots}>
-            <View style={styles.dot} />
-            <View style={styles.dot} />
-            <View style={styles.dot} />
+          {/* Property Overview */}
+          <View style={styles.propertyOverview}>
+            <Text style={styles.propertyPrice}>{formatPrice(property.price)}</Text>
+            
+            <View style={styles.propertySpecs}>
+              <Text style={styles.specText}>{formatSpecs(property)}</Text>
+            </View>
+            
+            <Text style={styles.propertyName}>{property.title}</Text>
+            <Text style={styles.propertyLocation}>{formatLocation(property)}</Text>
           </View>
-          
-          {/* Image Counter */}
-          <View style={styles.imageCounter}>
-            <Text style={styles.imageCounterText}>{currentImage}/{totalImages}</Text>
-          </View>
-        </View>
 
-        {/* Property Overview */}
-        <View style={styles.propertyOverview}>
-          <Text style={styles.propertyPrice}>₹1.2 Cr</Text>
-          
-          <View style={styles.propertySpecs}>
-            <Text style={styles.specText}>3 BHK</Text>
-            <View style={styles.specDot} />
-            <Text style={styles.specText}>1,450 sq ft</Text>
-            <View style={styles.specDot} />
-            <Text style={styles.specText}>Ready to Move</Text>
-          </View>
-          
-          <Text style={styles.propertyName}>Prestige Lakeside Habitat</Text>
-          <Text style={styles.propertyLocation}>Varthur, Bangalore</Text>
-        </View>
-
-        {/* Interactive Tools - Section 1 */}
-        <View style={styles.toolsSection}>
-          <ToolCard
-            title="EMI Calculator"
-            subtitle="Calculate monthly payment"
-            icon="calculator-outline"
-            onPress={() => {}}
-            />
-          
-          <View style={styles.actionButtons}>
-            <ActionButton
-              title="Call Now"
-              icon="call-outline"
-              onPress={() => {}}
-            />
-            <ActionButton
-              title="Chat"
-              icon="chatbubble-outline"
+          {/* Interactive Tools - Section 1 */}
+          <View style={styles.toolsSection}>
+            <ToolCard
+              title="EMI Calculator"
+              subtitle="Calculate monthly payment"
+              icon="calculator-outline"
               onPress={() => {}}
               />
-          </View>
-        </View>
-
-        {/* Interactive Tools - Section 2 */}
-        <View style={styles.viewersSection}>
-          <ToolCard
-            title="3D Viewer"
-            subtitle="Virtual Tour"
-            icon="cube-outline"
-            onPress={() => {}}
-            />
-          <ToolCard
-            title="Nearby Map"
-            subtitle="Location View"
-            icon="location-outline"
-            onPress={() => {}}
-          />
-        </View>
-
-        {/* AI Insight Section */}
-        <View style={styles.aiInsightCard}>
-          <View style={styles.aiInsightHeader}>
-            <View style={styles.aiInsightIcon}>
-              <Ionicons name="information-circle" size={24} color="#FFFFFF" />
-            </View>
-            <View style={styles.aiInsightContent}>
-              <Text style={styles.aiInsightTitle}>AI Insight: Why this is a good match</Text>
-              <Text style={styles.aiInsightDescription}>
-                Based on your preferences, this property offers excellent connectivity, top-rated schools nearby, and strong appreciation potential in the Varthur corridor.
-              </Text>
+            
+            <View style={styles.actionButtons}>
+              <ActionButton
+                title="Call Now"
+                icon="call-outline"
+                onPress={() => {}}
+              />
+              <ActionButton
+                title="Chat"
+                icon="chatbubble-outline"
+                onPress={() => {}}
+                />
             </View>
           </View>
-        </View>
 
-        {/* Mortgage Calculator */}
-        <View style={styles.mortgageCard}>
-          <View style={styles.mortgageHeader}>
-            <Ionicons name="calculator-outline" size={24} color="#374151" />
-            <Text style={styles.mortgageTitle}>Mortgage Calculator</Text>
-          </View>
-          
-          <InputField
-            label="Loan Amount"
-            value={loanAmount}
-            suffix="₹"
-            onChangeText={setLoanAmount}
+          {/* Interactive Tools - Section 2 */}
+          <View style={styles.viewersSection}>
+            <ToolCard
+              title="3D Viewer"
+              subtitle="Virtual Tour"
+              icon="cube-outline"
+              onPress={() => {}}
+              />
+            <ToolCard
+              title="Nearby Map"
+              subtitle="Location View"
+              icon="location-outline"
+              onPress={() => {}}
             />
-          
-          <InputField
-            label="Interest Rate"
-            value={interestRate}
-            suffix="%"
-            onChangeText={setInterestRate}
-          />
-          
-          <InputField
-            label="Tenure"
-            value={tenure}
-            suffix="yrs"
-            onChangeText={setTenure}
-          />
-          
-          <View style={styles.emiResult}>
-            <Text style={styles.emiResultText}>Monthly EMI: ₹82,745</Text>
           </View>
-        </View>
 
-        {/* Contact Agent Section */}
-        <View style={styles.contactSection}>
-          <Text style={styles.contactTitle}>Interested in this property?</Text>
-          <Text style={styles.contactSubtitle}>Get instant updates and schedule a visit</Text>
-          <TouchableOpacity style={styles.contactButton}>
-            <Text style={styles.contactButtonText}>Contact Agent</Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+          {/* AI Insight Section */}
+          <View style={styles.aiInsightCard}>
+            <View style={styles.aiInsightHeader}>
+              <View style={styles.aiInsightIcon}>
+                <Ionicons name="information-circle" size={24} color="#FFFFFF" />
+              </View>
+              <View style={styles.aiInsightContent}>
+                <Text style={styles.aiInsightTitle}>AI Insight: Why this is a good match</Text>
+                <Text style={styles.aiInsightDescription}>
+                  Based on your preferences, this property offers excellent connectivity, top-rated schools nearby, and strong appreciation potential in the {property.city} area.
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Mortgage Calculator */}
+          <View style={styles.mortgageCard}>
+            <View style={styles.mortgageHeader}>
+              <Ionicons name="calculator-outline" size={24} color="#374151" />
+              <Text style={styles.mortgageTitle}>Mortgage Calculator</Text>
+            </View>
+            
+            <InputField
+              label="Loan Amount"
+              value={loanAmount}
+              suffix="₹"
+              onChangeText={setLoanAmount}
+              />
+            
+            <InputField
+              label="Interest Rate"
+              value={interestRate}
+              suffix="%"
+              onChangeText={setInterestRate}
+            />
+            
+            <InputField
+              label="Tenure"
+              value={tenure}
+              suffix="yrs"
+              onChangeText={setTenure}
+            />
+            
+            <View style={styles.emiResult}>
+              <Text style={styles.emiResultText}>Monthly EMI: ₹82,745</Text>
+            </View>
+          </View>
+        </ScrollView>
+      </SafeAreaView>
+    </KeyboardAvoidingView>
   </>
   );
 }
@@ -250,9 +327,15 @@ const styles = StyleSheet.create({
       flex: 1,
     backgroundColor: '#FFFFFF',
   },
+  safeArea: {
+    flex: 1,
+  },
   scrollView: {
       flex: 1,
     },
+  scrollContent: {
+    flexGrow: 1,
+  },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -521,35 +604,53 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#111827',
   },
-  contactSection: {
-    backgroundColor: '#1F2937',
-    paddingHorizontal: 16,
-    paddingVertical: 24,
-    marginTop: 20,
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
   },
-  contactTitle: {
-    fontSize: 18,
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: '#374151',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    padding: 20,
+  },
+  errorTitle: {
+    fontSize: 20,
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: '#EF4444',
+    marginTop: 10,
     textAlign: 'center',
-    marginBottom: 8,
   },
-  contactSubtitle: {
-    fontSize: 14,
-    color: '#D1D5DB',
+  errorText: {
+    fontSize: 16,
+    color: '#6B7280',
     textAlign: 'center',
+    marginTop: 5,
     marginBottom: 20,
   },
-  contactButton: {
-    backgroundColor: '#FFFFFF',
-    paddingVertical: 16,
+  retryButton: {
+    backgroundColor: '#374151',
+    paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 12,
-    alignItems: 'center',
   },
-  contactButtonText: {
+  retryButtonText: {
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
-    color: '#1F2937',
+  },
+  imageContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#D1D5DB',
   },
 });

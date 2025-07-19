@@ -93,7 +93,7 @@ export default function Index() {
   // Normal auth flow - only redirect to search if user is confirmed
   if (authStore.user) {
     console.log('🏠 Redirecting to search (confirmed user)');
-    return <Redirect href="/(tabs)/search" />;
+    return <Redirect href="/(tabs)/home" />;
   }
 
   console.log('🔐 Redirecting to signin (not logged in)');

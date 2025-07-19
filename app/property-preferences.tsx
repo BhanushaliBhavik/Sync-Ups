@@ -356,26 +356,15 @@ export default function PropertyPreferences() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaView className="flex-1 bg-background">
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-        <View className="px-6 py-8">
+        <View className="px-6 py-4">
           {/* Header */}
-          <View className="mb-8">
-            {/* Back Button for Edit Mode */}
-            {isEditMode && (
-              <TouchableOpacity 
-                className="flex-row items-center mb-4"
-                onPress={() => router.back()}
-              >
-                <Ionicons name="chevron-back" size={24} color="#6B7280" />
-                <Text className="text-gray-600 ml-1">Back to Profile</Text>
-              </TouchableOpacity>
-            )}
-            
-            <Text className="text-3xl font-bold text-gray-900 mb-2 text-center">
-              {isEditMode ? 'Property Preferences' : 'Find Your Perfect Home'}
+          <View className="mb-6">
+            <Text className="text-3xl font-bold text-text-primary mb-2 text-center">
+              {isEditMode ? 'Edit Preferences' : 'Find Your Perfect Home'}
             </Text>
-            <Text className="text-gray-600 text-lg text-center">
+            <Text className="text-text-secondary text-lg text-center">
               {isEditMode 
                 ? 'Update your preferences to get better property matches' 
                 : 'Tell us your preferences to help us find the best matches for you'
@@ -654,57 +643,57 @@ export default function PropertyPreferences() {
             </View>
           </View>
 
-          {/* Action Buttons */}
-          <View className={`gap-4 mb-8 ${isEditMode ? '' : 'flex-row'}`}>
-            {isEditMode ? (
-              <>
-                <TouchableOpacity
-                  className={`w-full p-4 bg-blue-600 rounded-xl mb-4 ${isLoading ? 'opacity-50' : ''}`}
-                  onPress={handleSavePreferences}
-                  disabled={isLoading}
-                >
-                  <Text className="text-white text-center font-bold text-lg">
-                    {isLoading ? 'Saving...' : 'Save Changes'}
-                  </Text>
-                </TouchableOpacity>
-                
-                <TouchableOpacity
-                  className="w-full p-4 border border-gray-300 rounded-xl"
-                  onPress={() => router.back()}
-                  disabled={isLoading}
-                >
-                  <Text className="text-gray-700 text-center font-semibold text-lg">
-                    Cancel
-                  </Text>
-                </TouchableOpacity>
-              </>
-            ) : (
-              <>
-                <TouchableOpacity
-                  className={`flex-1 p-4 border border-gray-300 rounded-xl ${isLoading ? 'opacity-50' : ''}`}
-                  onPress={handleSkip}
-                  disabled={isLoading}
-                >
-                  <Text className="text-gray-700 text-center font-semibold text-lg">
-                    Skip
-                  </Text>
-                </TouchableOpacity>
-                
-                <TouchableOpacity
-                  className={`flex-1 p-4 bg-blue-600 rounded-xl ${isLoading ? 'opacity-50' : ''}`}
-                  onPress={handleSavePreferences}
-                  disabled={isLoading}
-                >
-                  <View className="flex-row items-center justify-center">
-                    <Ionicons name="search" size={20} color="white" />
-                    <Text className="text-white text-center font-bold text-lg ml-2">
-                      {isLoading ? 'Saving...' : 'Find Homes'}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              </>
-            )}
-          </View>
+                        {/* Action Buttons */}
+              <View className={`gap-4 mb-8 ${isEditMode ? '' : 'flex-row'}`}>
+                {isEditMode ? (
+                  <>
+                    <TouchableOpacity
+                      className={`w-full p-4 bg-primary rounded-xl mb-4 shadow-sm ${isLoading ? 'opacity-50' : ''}`}
+                      onPress={handleSavePreferences}
+                      disabled={isLoading}
+                    >
+                      <Text className="text-surface text-center font-bold text-lg">
+                        {isLoading ? 'Saving...' : 'Save Changes'}
+                      </Text>
+                    </TouchableOpacity>
+                    
+                    <TouchableOpacity
+                      className="w-full p-4 bg-surface border border-border rounded-xl shadow-sm"
+                      onPress={() => router.back()}
+                      disabled={isLoading}
+                    >
+                      <Text className="text-text-primary text-center font-semibold text-lg">
+                        Cancel
+                      </Text>
+                    </TouchableOpacity>
+                  </>
+                ) : (
+                  <>
+                    <TouchableOpacity
+                      className={`flex-1 p-4 bg-surface border border-border rounded-xl shadow-sm ${isLoading ? 'opacity-50' : ''}`}
+                      onPress={handleSkip}
+                      disabled={isLoading}
+                    >
+                      <Text className="text-text-primary text-center font-semibold text-lg">
+                        Skip
+                      </Text>
+                    </TouchableOpacity>
+                    
+                    <TouchableOpacity
+                      className={`flex-1 p-4 bg-accent rounded-xl shadow-sm ${isLoading ? 'opacity-50' : ''}`}
+                      onPress={handleSavePreferences}
+                      disabled={isLoading}
+                    >
+                      <View className="flex-row items-center justify-center">
+                        <Ionicons name="search" size={20} color="white" />
+                        <Text className="text-surface text-center font-bold text-lg ml-2">
+                          {isLoading ? 'Saving...' : 'Find Homes'}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  </>
+                )}
+              </View>
         </View>
       </ScrollView>
 
