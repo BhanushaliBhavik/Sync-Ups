@@ -29,7 +29,7 @@ export const preferencesService = {
         return null;
       }
 
-      console.log('📊 DEBUG - Current user from auth store:', {
+      console.log('📊 DEBUG - getPreferences called for user:', {
         id: currentUser.id,
         email: currentUser.email,
         name: currentUser.name
@@ -53,7 +53,8 @@ export const preferencesService = {
       if (error) {
         if (error.code === 'PGRST116') {
           // No preferences found - this is normal for new users
-          console.log('📝 ✅ CORRECT: No preferences found for NEW USER, returning null');
+          console.log('📝 ✅ CORRECT: No preferences found for user:', currentUser.id);
+          console.log('📝 ✅ This is a NEW USER or user without preferences - returning null');
           return null;
         }
         
@@ -61,9 +62,17 @@ export const preferencesService = {
         throw new Error(`Failed to fetch preferences: ${error.message}`);
       }
 
-      console.log('⚠️ WARNING: Found existing preferences for user:', currentUser.id);
-      console.log('📥 Supabase Data:', JSON.stringify(preferences, null, 2));
-      console.log('🔍 This user should be NEW - why do they have preferences already?');
+      console.log('📥 Found existing preferences for user:', currentUser.id);
+      console.log('📥 User has saved preferences:', {
+        preferred_location: preferences.preferred_location,
+        location_type: preferences.location_type,
+        home_types: preferences.home_types,
+        min_price: preferences.min_price,
+        max_price: preferences.max_price,
+        bedrooms: preferences.bedrooms,
+        bathrooms: preferences.bathrooms,
+        amenities: preferences.amenities
+      });
       
       return preferences;
 

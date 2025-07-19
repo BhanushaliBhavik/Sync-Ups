@@ -1,17 +1,22 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Alert } from 'react-native';
 import { preferencesService, PropertyPreferences } from '../services/preferencesService';
+import { useAuthStore } from './useAuth';
 
-// Query keys for React Query
+// Query keys for React Query with user-scoped caching
 export const QUERY_KEYS = {
-  PREFERENCES: ['preferences'] as const,
+  PREFERENCES: (userId?: string) => ['preferences', userId] as const,
 };
 
-// Hook to get user preferences
+// Hook to get user preferences with user-scoped caching
 export const useGetPreferences = () => {
+  const authStore = useAuthStore();
+  const currentUser = authStore.getCurrentUser();
+  
   return useQuery({
-    queryKey: QUERY_KEYS.PREFERENCES,
+    queryKey: QUERY_KEYS.PREFERENCES(currentUser?.id),
     queryFn: preferencesService.getPreferences,
+    enabled: !!currentUser?.id, // Only run query if user is authenticated
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes (formerly cacheTime)
   });
@@ -20,17 +25,21 @@ export const useGetPreferences = () => {
 // Hook to save/update preferences
 export const useSavePreferences = () => {
   const queryClient = useQueryClient();
+  const authStore = useAuthStore();
 
   return useMutation({
     mutationFn: preferencesService.savePreferences,
     onSuccess: (data: PropertyPreferences) => {
       console.log('✅ Preferences saved successfully:', data);
       
-      // Update the preferences cache with new data
-      queryClient.setQueryData(['preferences'], data);
-      
-      // Optionally refetch to ensure consistency
-      queryClient.invalidateQueries({ queryKey: ['preferences'] });
+      const currentUser = authStore.getCurrentUser();
+      if (currentUser?.id) {
+        // Update the user-specific preferences cache with new data
+        queryClient.setQueryData(QUERY_KEYS.PREFERENCES(currentUser.id), data);
+        
+        // Optionally refetch to ensure consistency
+        queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PREFERENCES(currentUser.id) });
+      }
     },
     onError: (error: any) => {
       console.error('❌ Failed to save preferences:', error.message);
@@ -50,7 +59,7 @@ export const useSavePreferences = () => {
   });
 };
 
-// Hook to check if user has preferences
+// Hook to check if user has preferences with user-scoped caching
 export const useHasPreferences = () => {
   const { data: preferences, isLoading } = useGetPreferences();
   
@@ -58,5 +67,23 @@ export const useHasPreferences = () => {
     hasPreferences: Boolean(preferences),
     isLoading,
     preferences,
+  };
+};
+
+// Hook to clear preferences cache for a specific user
+export const useClearPreferencesCache = () => {
+  const queryClient = useQueryClient();
+  
+  return {
+    clearUserPreferences: (userId?: string) => {
+      if (userId) {
+        console.log('🧹 Clearing preferences cache for user:', userId);
+        queryClient.removeQueries({ queryKey: QUERY_KEYS.PREFERENCES(userId) });
+      }
+    },
+    clearAllPreferences: () => {
+      console.log('🧹 Clearing all preferences cache');
+      queryClient.removeQueries({ queryKey: ['preferences'] });
+    }
   };
 }; 

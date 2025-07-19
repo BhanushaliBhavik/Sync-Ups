@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { AuthError, authService, SignInData, SignUpData } from '../services/authService';
@@ -25,10 +25,17 @@ export const useSignIn = () => {
 };
 
 export const useSignUp = () => {
+  const queryClient = useQueryClient();
+  
   return useMutation({
     mutationFn: (data: SignUpData) => authService.signUp(data),
     onMutate: () => {
       authStore.clearAllUserData(); // Clear old user data completely
+      
+      // Clear React Query cache to prevent old user data from showing
+      queryClient.removeQueries({ queryKey: ['preferences'] });
+      console.log('🧹 Cleared all preferences cache during signup');
+      
       authStore.setLoading(true);
     },
     onSuccess: (user) => {
@@ -42,7 +49,7 @@ export const useSignUp = () => {
       console.log('✅ User set in auth store:', user.id);
     },
     onError: (error: Error) => {
-      console.error('❌ useSignUp onError:', error);
+      console.error('Sign up error:', error);
       const message = error instanceof AuthError ? error.message : 'Sign up failed. Please try again.';
       authStore.setError(message);
       authStore.setLoading(false);
@@ -51,11 +58,21 @@ export const useSignUp = () => {
 };
 
 export const useSignOut = () => {
+  const queryClient = useQueryClient();
+  
   return useMutation({
-    mutationFn: () => authService.signOut(),
+    mutationFn: authService.signOut,
     onMutate: () => {
+      // Get current user before clearing
+      const currentUser = authStore.getCurrentUser();
+      
+      // Clear user-specific preferences cache
+      if (currentUser?.id) {
+        queryClient.removeQueries({ queryKey: ['preferences', currentUser.id] });
+        console.log('🧹 Cleared preferences cache for user:', currentUser.id);
+      }
+      
       authStore.setLoading(true);
-      authStore.clearError();
     },
     onSuccess: () => {
       authStore.signOut();
@@ -63,7 +80,7 @@ export const useSignOut = () => {
     },
     onError: (error: Error) => {
       console.error('Sign out error:', error);
-      const message = error instanceof AuthError ? error.message : 'Failed to sign out. Please try again.';
+      const message = error instanceof AuthError ? error.message : 'Sign out failed. Please try again.';
       authStore.setError(message);
       authStore.setLoading(false);
     },
