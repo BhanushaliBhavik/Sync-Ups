@@ -1,8 +1,8 @@
 import { usePropertyById } from '@/hooks/useProperties';
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useLocalSearchParams } from 'expo-router';
-import React, { useState } from 'react';
-import { ActivityIndicator, Dimensions, Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, Dimensions, Image, KeyboardAvoidingView, Linking, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const { width } = Dimensions.get('window');
@@ -161,6 +161,9 @@ export default function PropertyDetailScreen() {
   const [loanAmount, setLoanAmount] = useState('96,00,000');
   const [interestRate, setInterestRate] = useState('8.5');
   const [tenure, setTenure] = useState('20');
+  const [emiAmount, setEmiAmount] = useState(0);
+  const [totalAmount, setTotalAmount] = useState(0);
+  const [totalInterest, setTotalInterest] = useState(0);
 
   // Fetch property data using the ID
   const { property, loading, error, refetch } = usePropertyById(id || '', { autoFetch: !!id });
@@ -169,6 +172,120 @@ export default function PropertyDetailScreen() {
   const images = property ? getPropertyImages(property) : [];
   const totalImages = images.length || 1;
   const hasImages = images.length > 0;
+
+  // Calculate EMI when inputs change
+  const calculateEMI = useCallback(() => {
+    const principal = parseFloat(loanAmount.replace(/,/g, '')) || 0;
+    const rate = parseFloat(interestRate) || 0;
+    const time = parseFloat(tenure) || 0;
+
+    if (principal > 0 && rate > 0 && time > 0) {
+      const monthlyRate = rate / (12 * 100);
+      const numberOfPayments = time * 12;
+      
+      // EMI = P × r × (1 + r)^n / ((1 + r)^n - 1)
+      const emi = principal * monthlyRate * Math.pow(1 + monthlyRate, numberOfPayments) / 
+                  (Math.pow(1 + monthlyRate, numberOfPayments) - 1);
+      
+      const total = emi * numberOfPayments;
+      const interest = total - principal;
+      
+      setEmiAmount(emi);
+      setTotalAmount(total);
+      setTotalInterest(interest);
+    } else {
+      setEmiAmount(0);
+      setTotalAmount(0);
+      setTotalInterest(0);
+    }
+  }, [loanAmount, interestRate, tenure]);
+
+  // Update loan amount when property price changes
+  useEffect(() => {
+    if (property?.price) {
+      // Set loan amount to 80% of property price (typical down payment scenario)
+      const suggestedLoanAmount = Math.floor(property.price * 0.8);
+      setLoanAmount(suggestedLoanAmount.toLocaleString());
+    }
+  }, [property?.price]);
+
+  // Recalculate EMI when inputs change
+  useEffect(() => {
+    calculateEMI();
+  }, [calculateEMI]);
+
+  // Format currency for display
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(amount);
+  };
+
+  // Handle loan amount input with formatting
+  const handleLoanAmountChange = (text: string) => {
+    // Remove all non-numeric characters except commas
+    const cleaned = text.replace(/[^\d,]/g, '');
+    // Remove commas and convert to number
+    const number = parseInt(cleaned.replace(/,/g, '')) || 0;
+    // Format with commas
+    const formatted = number.toLocaleString();
+    setLoanAmount(formatted);
+  };
+
+  // Handle interest rate input
+  const handleInterestRateChange = (text: string) => {
+    // Allow only numbers and decimal point
+    const cleaned = text.replace(/[^\d.]/g, '');
+    // Ensure only one decimal point
+    const parts = cleaned.split('.');
+    if (parts.length <= 2) {
+      setInterestRate(cleaned);
+    }
+  };
+
+  // Handle tenure input
+  const handleTenureChange = (text: string) => {
+    // Allow only numbers
+    const cleaned = text.replace(/[^\d]/g, '');
+    setTenure(cleaned);
+  };
+
+  // Handle opening Google Maps
+  const handleOpenMap = async () => {
+    if (!property?.latitude || !property?.longitude) {
+      Alert.alert(
+        'Location Not Available',
+        'This property does not have location coordinates available.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
+    try {
+      const url = `https://www.google.com/maps/search/?api=1&query=${property.latitude},${property.longitude}`;
+      const supported = await Linking.canOpenURL(url);
+      
+      if (supported) {
+        await Linking.openURL(url);
+      } else {
+        Alert.alert(
+          'Cannot Open Maps',
+          'Google Maps is not available on this device.',
+          [{ text: 'OK' }]
+        );
+      }
+    } catch (error) {
+      console.error('Error opening map:', error);
+      Alert.alert(
+        'Error',
+        'Failed to open Google Maps. Please try again.',
+        [{ text: 'OK' }]
+      );
+    }
+  };
 
   // Loading state
   if (loading) {
@@ -349,7 +466,7 @@ export default function PropertyDetailScreen() {
               title="Nearby Map"
               subtitle="Location View"
               icon="location-outline"
-              onPress={() => {}}
+              onPress={handleOpenMap}
             />
           </View>
 
@@ -379,25 +496,36 @@ export default function PropertyDetailScreen() {
               label="Loan Amount"
               value={loanAmount}
               suffix="₹"
-              onChangeText={setLoanAmount}
+              onChangeText={handleLoanAmountChange}
               />
             
             <InputField
               label="Interest Rate"
               value={interestRate}
               suffix="%"
-              onChangeText={setInterestRate}
+              onChangeText={handleInterestRateChange}
             />
             
             <InputField
               label="Tenure"
               value={tenure}
               suffix="yrs"
-              onChangeText={setTenure}
+              onChangeText={handleTenureChange}
             />
             
             <View style={styles.emiResult}>
-              <Text style={styles.emiResultText}>Monthly EMI: ₹82,745</Text>
+              <View style={styles.emiResultRow}>
+                <Text style={styles.emiResultLabel}>Monthly EMI:</Text>
+                <Text style={styles.emiResultValue}>{formatCurrency(emiAmount)}</Text>
+              </View>
+              <View style={styles.emiResultRow}>
+                <Text style={styles.emiResultLabel}>Total Amount:</Text>
+                <Text style={styles.emiResultValue}>{formatCurrency(totalAmount)}</Text>
+              </View>
+              <View style={styles.emiResultRow}>
+                <Text style={styles.emiResultLabel}>Total Interest:</Text>
+                <Text style={styles.emiResultValue}>{formatCurrency(totalInterest)}</Text>
+              </View>
             </View>
           </View>
         </ScrollView>
@@ -721,7 +849,17 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
   },
-  emiResultText: {
+  emiResultRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginBottom: 8,
+  },
+  emiResultLabel: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  emiResultValue: {
     fontSize: 16,
     fontWeight: '600',
     color: '#111827',

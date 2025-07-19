@@ -24,7 +24,7 @@ export default function SignIn() {
 
     try {
       await signInMutation.mutateAsync({ email, password });
-      router.replace('/(tabs)/search');
+      router.replace('/(tabs)/home');
     } catch (error: any) {
       // Error is already handled by the mutation's onError callback
       console.log('Sign in completed with error');

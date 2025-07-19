@@ -3,7 +3,7 @@ import { useSearchByFilters, useSearchProperties } from '@/hooks/useProperties';
 import { PropertyFilters } from '@/services/propertyService';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -44,6 +44,7 @@ export default function SearchScreen() {
   const [activeFilter, setActiveFilter] = useState('All');
   const [searchText, setSearchText] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearchText, setDebouncedSearchText] = useState('');
   const [filters, setFilters] = useState<PropertyFilters>({
     city: '',
     min_price: undefined,
@@ -72,28 +73,62 @@ export default function SearchScreen() {
   const currentLoading = activeFilter === 'All' ? searchLoading : filterLoading;
   const currentError = activeFilter === 'All' ? searchError : filterError;
 
+  // Debounce search text to avoid too many API calls
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchText(searchText);
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [searchText]);
+
   // Load all properties on component mount
   useEffect(() => {
-    search('');
+    loadAllProperties();
   }, []);
+
+  // Handle debounced search
+  useEffect(() => {
+    if (debouncedSearchText.trim()) {
+      performSearch(debouncedSearchText.trim());
+    } else if (debouncedSearchText === '') {
+      loadAllProperties();
+    }
+  }, [debouncedSearchText]);
+
+  // Load all properties function
+  const loadAllProperties = useCallback(async () => {
+    try {
+      await search('');
+      setSearchQuery('');
+      setActiveFilter('All');
+    } catch (error) {
+      console.error('Error loading all properties:', error);
+    }
+  }, [search]);
+
+  // Perform search function
+  const performSearch = useCallback(async (query: string) => {
+    try {
+      setSearchQuery(query);
+      await search(query);
+      setActiveFilter('All');
+    } catch (error) {
+      console.error('Error performing search:', error);
+    }
+  }, [search]);
 
   // Handle search text changes
   const handleSearchTextChange = (text: string) => {
     setSearchText(text);
-    
-    // If text is empty, show all properties
-    if (!text.trim()) {
-      setSearchQuery('');
-      search('');
-    }
   };
 
-  // Handle search submission
+  // Handle search submission (immediate search)
   const handleSearch = async () => {
     if (searchText.trim()) {
-      setSearchQuery(searchText.trim());
-      await search(searchText.trim());
-      setActiveFilter('All');
+      await performSearch(searchText.trim());
+    } else {
+      await loadAllProperties();
     }
   };
 
@@ -105,7 +140,13 @@ export default function SearchScreen() {
       // Show all products without any filters
       const allFilters: PropertyFilters = {};
       setFilters(allFilters);
-      await searchByFilters(allFilters);
+      try {
+        await searchByFilters(allFilters);
+      } catch (error) {
+        console.error('Error applying all filter:', error);
+        // Fallback to loading all properties
+        await loadAllProperties();
+      }
       return;
     }
 
@@ -115,41 +156,31 @@ export default function SearchScreen() {
     switch (filter) {
       case 'Price':
         newFilters = { 
-          ...filters, 
           min_price: 300000, 
-          max_price: 800000,
-          city: undefined,
-          bedrooms: undefined,
-          bathrooms: undefined
+          max_price: 800000
         };
         break;
       case 'Type':
         newFilters = { 
-          ...filters, 
-          type: 'buy',
-          city: undefined,
-          min_price: undefined,
-          max_price: undefined,
-          bedrooms: undefined,
-          bathrooms: undefined
+          type: 'buy'
         };
         break;
       case 'BHK':
         newFilters = { 
-          ...filters, 
-          bedrooms: 2,
-          city: undefined,
-          min_price: undefined,
-          max_price: undefined,
-          bathrooms: undefined
+          bedrooms: 2
         };
         break;
       default:
-        newFilters = filters;
+        newFilters = {};
     }
     
     setFilters(newFilters);
-    await searchByFilters(newFilters);
+    try {
+      await searchByFilters(newFilters);
+    } catch (error) {
+      console.error('Error applying filter:', filter, error);
+      Alert.alert('Filter Error', 'Failed to apply filter. Please try again.');
+    }
   };
 
   // Handle view details
@@ -161,7 +192,7 @@ export default function SearchScreen() {
   };
 
   // Handle clear filters
-  const handleClearFilters = () => {
+  const handleClearFilters = async () => {
     setSearchText('');
     setSearchQuery('');
     setActiveFilter('All');
@@ -172,8 +203,14 @@ export default function SearchScreen() {
       bedrooms: undefined,
       bathrooms: undefined
     });
-    // Clear the search results to show all properties
-    search('');
+    await loadAllProperties();
+  };
+
+  // Handle popular city search
+  const handlePopularCitySearch = async (city: string) => {
+    setSearchText(city);
+    setSearchQuery(city);
+    await performSearch(city);
   };
 
   // Show loading state
@@ -182,7 +219,9 @@ export default function SearchScreen() {
       <SafeAreaView className="flex-1 bg-background">
         <View className="flex-1 justify-center items-center">
           <ActivityIndicator size="large" color="#007C91" />
-          <Text className="text-text-secondary text-base mt-4">Searching properties...</Text>
+          <Text className="text-text-secondary text-base mt-4">
+            {searchQuery ? `Searching for "${searchQuery}"...` : 'Loading properties...'}
+          </Text>
         </View>
       </SafeAreaView>
     );
@@ -198,14 +237,25 @@ export default function SearchScreen() {
           </View>
           <Text className="text-2xl font-bold text-text-primary mb-3 text-center">Search Error</Text>
           <Text className="text-text-secondary text-center text-base leading-6 mb-8">
-            {currentError}
+            {currentError.includes('Failed to fetch') 
+              ? 'Unable to connect to the server. Please check your internet connection.'
+              : currentError
+            }
           </Text>
-          <TouchableOpacity 
-            className="bg-primary px-8 py-4 rounded-xl shadow-lg"
-            onPress={handleClearFilters}
-          >
-            <Text className="text-white font-semibold text-base">Try Again</Text>
-          </TouchableOpacity>
+          <View className="flex-row space-x-4">
+            <TouchableOpacity 
+              className="bg-primary px-6 py-3 rounded-xl shadow-lg"
+              onPress={handleClearFilters}
+            >
+              <Text className="text-white font-semibold text-base">Try Again</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              className="bg-gray-200 px-6 py-3 rounded-xl"
+              onPress={() => router.push('/(tabs)/home')}
+            >
+              <Text className="text-gray-700 font-semibold text-base">Go Home</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </SafeAreaView>
     );
@@ -213,7 +263,7 @@ export default function SearchScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-background">
-      <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+      <ScrollView className="flex-1 bg-red" showsVerticalScrollIndicator={false}>
         {/* Search Bar */}
         <View className="bg-surface px-6 py-6 shadow-sm border-b border-border">
           <View className="flex-row items-center bg-white rounded-2xl px-5 py-4 shadow-sm border-2 border-border">
@@ -296,7 +346,9 @@ export default function SearchScreen() {
           {currentLoading && currentProperties.length > 0 && (
             <View className="py-4 justify-center items-center">
               <ActivityIndicator size="small" color="#007C91" />
-              <Text className="text-text-secondary text-sm mt-2">Updating results...</Text>
+              <Text className="text-text-secondary text-sm mt-2">
+                {searchQuery ? `Updating results for "${searchQuery}"...` : 'Updating results...'}
+              </Text>
             </View>
           )}
           
@@ -316,21 +368,33 @@ export default function SearchScreen() {
             <View className="w-24 h-24 bg-primary-100 rounded-full justify-center items-center mb-6">
               <Ionicons name="search-outline" size={48} color="#007C91" />
             </View>
-            <Text className="text-2xl font-bold text-text-primary mb-3 text-center">No properties found</Text>
+            <Text className="text-2xl font-bold text-text-primary mb-3 text-center">
+              {searchQuery ? 'No properties found' : 'Start exploring properties'}
+            </Text>
             <Text className="text-text-secondary text-center text-base leading-6 mb-8">
               {searchQuery 
-                ? `No properties found for "${searchQuery}". Try adjusting your search criteria.`
-                : 'Start searching for properties by entering a city, property type, or features.'
+                ? `No properties found for "${searchQuery}". Try adjusting your search criteria or browse all properties.`
+                : 'Search for properties by entering a city, property type, or features to get started.'
               }
             </Text>
-            <TouchableOpacity 
-              className="bg-primary px-8 py-4 rounded-xl shadow-lg"
-              onPress={handleClearFilters}
-            >
-              <Text className="text-white font-semibold text-base">
-                {searchQuery ? 'Clear Search' : 'Browse All Properties'}
-              </Text>
-            </TouchableOpacity>
+            <View className="flex-row space-x-4">
+              <TouchableOpacity 
+                className="bg-primary px-6 py-3 rounded-xl shadow-lg"
+                onPress={handleClearFilters}
+              >
+                <Text className="text-white font-semibold text-base">
+                  {searchQuery ? 'Clear Search' : 'Browse All Properties'}
+                </Text>
+              </TouchableOpacity>
+              {searchQuery && (
+                <TouchableOpacity 
+                  className="bg-gray-200 px-6 py-3 rounded-xl"
+                  onPress={() => setSearchText('')}
+                >
+                  <Text className="text-gray-700 font-semibold text-base">Try Different Search</Text>
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
         )}
 
@@ -343,15 +407,30 @@ export default function SearchScreen() {
                 <TouchableOpacity
                   key={city}
                   className="bg-surface border border-border px-4 py-2 rounded-full"
-                  onPress={() => {
-                    setSearchText(city);
-                    setSearchQuery(city);
-                    search(city);
-                  }}
+                  onPress={() => handlePopularCitySearch(city)}
                 >
                   <Text className="text-text-primary font-medium">{city}</Text>
                 </TouchableOpacity>
               ))}
+            </View>
+            
+            <View className="mt-6">
+              <Text className="text-lg font-semibold text-text-primary mb-4">Quick Filters</Text>
+              <View className="flex-row flex-wrap gap-2">
+                {[
+                  { label: 'Under $500K', filter: 'Price' },
+                  { label: '2+ Bedrooms', filter: 'BHK' },
+                  { label: 'Buy Properties', filter: 'Type' }
+                ].map((item) => (
+                  <TouchableOpacity
+                    key={item.filter}
+                    className="bg-primary-50 border border-primary-200 px-4 py-2 rounded-full"
+                    onPress={() => handleFilterChange(item.filter)}
+                  >
+                    <Text className="text-primary font-medium">{item.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
           </View>
         )}

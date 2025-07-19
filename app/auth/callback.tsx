@@ -33,8 +33,8 @@ export default function AuthCallback() {
           console.log('📍 Auth callback: Redirecting to preferences');
           router.replace('/property-preferences');
         } else {
-          console.log('🏠 Auth callback: Redirecting to search');
-          router.replace('/(tabs)/search');
+          console.log('🏠 Auth callback: Redirecting to home');
+          router.replace('/(tabs)/home');
         }
       } else if (authStore.isWaitingForConfirmation) {
         // User is still waiting for confirmation
