@@ -4,14 +4,13 @@ import React, { useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAppleSignIn, useAuthStore, useGoogleSignIn, useSignUp } from '../../hooks/useAuth';
+import { navigationService } from '../../services/navigationService';
 
 export default function SignUp() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  
   const signUpMutation = useSignUp();
   const googleSignInMutation = useGoogleSignIn();
   const appleSignInMutation = useAppleSignIn();
@@ -25,63 +24,126 @@ export default function SignUp() {
       return;
     }
 
-    if (password !== confirmPassword) {
-      Alert.alert('Error', 'Passwords do not match');
-      return;
-    }
-
-    if (password.length < 6) {
-      Alert.alert('Error', 'Password must be at least 6 characters');
-      return;
-    }
-
     try {
-      const user = await signUpMutation.mutateAsync({ 
+      const result = await signUpMutation.mutateAsync({ 
         email, 
         password, 
         firstName, 
         lastName 
       });
       
-      console.log('Sign up successful, user:', user);
+      console.log('✅ Signup mutation successful');
       
-      Alert.alert(
-        'Account Created Successfully!', 
-        'Welcome to RealEstate! You can now sign in to your account.',
-        [
-          { 
-            text: 'Sign In Now', 
-            onPress: () => router.replace('/auth/signin')
-          }
-        ]
-      );
+      // Wait a moment for auth state to stabilize
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      const currentUser = authStore.getCurrentUser();
+      
+      console.log('🔍 Auth state after signup:', {
+        hasUser: !!currentUser,
+        userId: currentUser?.id,
+        isConfirmed: !!authStore.user,
+        isWaitingForConfirmation: authStore.isWaitingForConfirmation
+      });
+      
+      if (authStore.user) {
+        // User is confirmed and signed in
+        console.log('🎯 User is confirmed and signed in, setting up preferences flow');
+        await navigationService.setPreferencesScreenActive(authStore.user.id);
+        router.push('/property-preferences' as any);
+        
+      } else if (authStore.unconfirmedUser) {
+        // User needs email confirmation
+        console.log('📧 User needs email confirmation');
+        
+        // Set navigation state for when they confirm
+        await navigationService.setPreferencesScreenActive(authStore.unconfirmedUser.id);
+        
+        Alert.alert(
+          'Check Your Email! 📧',
+          `We've sent a confirmation link to ${email}. Please check your email and click the link to complete your account setup.`,
+          [
+            { 
+              text: 'OK', 
+              onPress: () => {
+                console.log('👤 User needs to confirm email, staying on signup');
+                // Stay on signup screen so they can see the confirmation message
+              }
+            }
+          ]
+        );
+        
+      } else {
+        console.warn('⚠️ No user found after signup');
+        Alert.alert('Error', 'Something went wrong. Please try again.');
+      }
+      
     } catch (error: any) {
-      // Error is already handled by the mutation's onError callback
-      console.log('Sign up completed with error:', error);
+      console.error('❌ Signup error:', error);
     }
   };
 
-  const onGoogleSignUp = async () => {
+  const onGoogleSignIn = async () => {
     authStore.clearError(); // Clear any previous errors
     
     try {
       await googleSignInMutation.mutateAsync();
-      // Success will be handled by auth state change
+      
+      // Wait for auth state to update
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      const currentUser = authStore.getCurrentUser();
+      
+      // Set navigation state for preferences screen if user is successful
+      if (currentUser?.id) {
+        console.log('🎯 Google signup successful, setting up preferences flow');
+        await navigationService.setPreferencesScreenActive(currentUser.id);
+        
+        if (authStore.user) {
+          // User is confirmed and signed in
+          router.push('/property-preferences' as any);
+        } else if (authStore.unconfirmedUser) {
+          // User needs confirmation (unlikely with OAuth but handle it)
+          console.log('📧 Google user needs confirmation');
+        }
+      }
+      
+      // Success will be handled by auth state change or manual redirect
     } catch (error: any) {
       // Error is already handled by the mutation's onError callback
-      console.log('Google sign up completed with error');
+      console.log('Google sign in completed with error');
     }
   };
 
-  const onAppleSignUp = async () => {
+  const onAppleSignIn = async () => {
     authStore.clearError(); // Clear any previous errors
     
     try {
       await appleSignInMutation.mutateAsync();
-      // Success will be handled by auth state change
+      
+      // Wait for auth state to update
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      const currentUser = authStore.getCurrentUser();
+      
+      // Set navigation state for preferences screen if user is successful
+      if (currentUser?.id) {
+        console.log('🎯 Apple signup successful, setting up preferences flow');
+        await navigationService.setPreferencesScreenActive(currentUser.id);
+        
+        if (authStore.user) {
+          // User is confirmed and signed in
+          router.push('/property-preferences' as any);
+        } else if (authStore.unconfirmedUser) {
+          // User needs confirmation (unlikely with OAuth but handle it)
+          console.log('📧 Apple user needs confirmation');
+        }
+      }
+      
+      // Success will be handled by auth state change or manual redirect
     } catch (error: any) {
       // Error is already handled by the mutation's onError callback
-      console.log('Apple sign up completed with error');
+      console.log('Apple sign in completed with error');
     }
   };
 
@@ -106,8 +168,26 @@ export default function SignUp() {
                 Create Account
               </Text>
               <Text className="text-gray-600 text-lg">
-                Sign up to get started
+                Join us to find your perfect home
               </Text>
+              
+              {/* Email Confirmation Waiting Status */}
+              {authStore.isWaitingForConfirmation && (
+                <View className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <View className="flex-row items-center justify-center mb-2">
+                    <Ionicons name="mail" size={20} color="#2563EB" />
+                    <Text className="text-blue-800 font-semibold ml-2">
+                      Check Your Email! 📧
+                    </Text>
+                  </View>
+                  <Text className="text-blue-700 text-sm text-center">
+                    We've sent a confirmation link to your email. Please click the link to complete your registration.
+                  </Text>
+                  <Text className="text-blue-600 text-xs text-center mt-2">
+                    {authStore.unconfirmedUser?.email}
+                  </Text>
+                </View>
+              )}
             </View>
 
             {/* Error Message */}
@@ -121,7 +201,7 @@ export default function SignUp() {
 
             {/* OAuth Buttons - Temporarily disabled until configured */}
             <View className="mb-8">
-              {/* Google Sign Up - Disabled */}
+              {/* Google Sign In - Disabled */}
               <TouchableOpacity
                 className="w-full p-4 mb-4 border border-gray-300 rounded-xl flex-row justify-center items-center bg-gray-100 shadow-sm opacity-50"
                 activeOpacity={0.8}
@@ -133,7 +213,7 @@ export default function SignUp() {
                 </Text>
               </TouchableOpacity>
 
-              {/* Apple Sign Up - Disabled */}
+              {/* Apple Sign In - Disabled */}
               <TouchableOpacity
                 className="w-full p-4 border border-gray-300 rounded-xl flex-row justify-center items-center bg-gray-100 shadow-sm opacity-50"
                 activeOpacity={0.8}
@@ -153,10 +233,10 @@ export default function SignUp() {
               <View className="flex-1 h-px bg-gray-300" />
             </View>
 
-            {/* Form */}
+            {/* Email/Password Form */}
             <View className="mb-8">
-              {/* First Name & Last Name */}
-              <View className="flex-row mb-6 space-x-4">
+              {/* Name Fields */}
+              <View className="flex-row gap-4 mb-6">
                 <View className="flex-1">
                   <Text className="text-gray-700 font-semibold mb-3">First Name</Text>
                   <TextInput
@@ -166,9 +246,10 @@ export default function SignUp() {
                     value={firstName}
                     onChangeText={(text) => {
                       setFirstName(text);
-                      if (authStore.error) authStore.clearError(); // Clear error when user starts typing
+                      if (authStore.error) authStore.clearError();
                     }}
                     autoCapitalize="words"
+                    autoCorrect={false}
                     editable={!isLoading}
                   />
                 </View>
@@ -181,9 +262,10 @@ export default function SignUp() {
                     value={lastName}
                     onChangeText={(text) => {
                       setLastName(text);
-                      if (authStore.error) authStore.clearError(); // Clear error when user starts typing
+                      if (authStore.error) authStore.clearError();
                     }}
                     autoCapitalize="words"
+                    autoCorrect={false}
                     editable={!isLoading}
                   />
                 </View>
@@ -199,7 +281,7 @@ export default function SignUp() {
                   value={email}
                   onChangeText={(text) => {
                     setEmail(text);
-                    if (authStore.error) authStore.clearError(); // Clear error when user starts typing
+                    if (authStore.error) authStore.clearError();
                   }}
                   keyboardType="email-address"
                   autoCapitalize="none"
@@ -209,7 +291,7 @@ export default function SignUp() {
               </View>
 
               {/* Password */}
-              <View className="mb-6">
+              <View className="mb-8">
                 <Text className="text-gray-700 font-semibold mb-3">Password</Text>
                 <TextInput
                   className="w-full p-4 border border-gray-300 rounded-xl bg-white text-gray-900 text-base"
@@ -218,24 +300,7 @@ export default function SignUp() {
                   value={password}
                   onChangeText={(text) => {
                     setPassword(text);
-                    if (authStore.error) authStore.clearError(); // Clear error when user starts typing
-                  }}
-                  secureTextEntry
-                  editable={!isLoading}
-                />
-              </View>
-
-              {/* Confirm Password */}
-              <View className="mb-8">
-                <Text className="text-gray-700 font-semibold mb-3">Confirm Password</Text>
-                <TextInput
-                  className="w-full p-4 border border-gray-300 rounded-xl bg-white text-gray-900 text-base"
-                  placeholder="Confirm your password"
-                  placeholderTextColor="#9CA3AF"
-                  value={confirmPassword}
-                  onChangeText={(text) => {
-                    setConfirmPassword(text);
-                    if (authStore.error) authStore.clearError(); // Clear error when user starts typing
+                    if (authStore.error) authStore.clearError();
                   }}
                   secureTextEntry
                   editable={!isLoading}
@@ -264,6 +329,32 @@ export default function SignUp() {
                 </TouchableOpacity>
               </Link>
             </View>
+
+            {/* Debug Link - Remove after setup */}
+            <View className="flex-row justify-center items-center py-2">
+              <Link href="/debug-auth" asChild>
+                <TouchableOpacity disabled={isLoading}>
+                  <Text className="text-gray-500 font-medium text-sm">Debug OAuth Issues</Text>
+                </TouchableOpacity>
+              </Link>
+            </View>
+
+            {/* Auth State Debug - Dev Mode */}
+            {__DEV__ && (
+              <View className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <Text className="text-blue-800 text-xs text-center">
+                  🔍 Auth State: {(() => {
+                    const currentUser = authStore.getCurrentUser();
+                    if (authStore.user) return `Confirmed (${authStore.user.email})`;
+                    if (authStore.unconfirmedUser) return `Unconfirmed (${authStore.unconfirmedUser.email})`;
+                    return 'Not signed in';
+                  })()}
+                </Text>
+                <Text className="text-blue-600 text-xs text-center mt-1">
+                  Loading: {authStore.isLoading ? 'Yes' : 'No'} | Waiting for confirmation: {authStore.isWaitingForConfirmation ? 'Yes' : 'No'}
+                </Text>
+              </View>
+            )}
           </View>
         </ScrollView>
       </KeyboardAvoidingView>

@@ -1,75 +1,101 @@
-import { Link } from 'expo-router';
-import React from 'react';
-import { Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Redirect } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Text, View } from 'react-native';
+import { useAuthStore } from '../hooks/useAuth';
+import { navigationService } from '../services/navigationService';
 
 export default function Index() {
-  return (
-    <SafeAreaView className="flex-1 bg-gradient-to-br from-blue-50 to-white">
-      <View className="flex-1 justify-center items-center px-6">
-        {/* Logo/Brand Section */}
-        <View className="mb-16 items-center">
-          <View className="w-20 h-20 bg-blue-600 rounded-2xl mb-6 items-center justify-center shadow-lg">
-            <Text className="text-white text-3xl font-bold">RE</Text>
+  const [isInitializing, setIsInitializing] = useState(true);
+  const [shouldRedirectToPreferences, setShouldRedirectToPreferences] = useState(false);
+  const authStore = useAuthStore();
+
+  useEffect(() => {
+    const initializeApp = async () => {
+      try {
+        // Reduced wait time since signup now handles direct navigation
+        await new Promise(resolve => setTimeout(resolve, 800));
+        
+        const currentUser = authStore.getCurrentUser();
+        console.log('🔍 Auth state:', currentUser ? 'User present' : 'Not logged in');
+        console.log('🔍 Is confirmed user:', !!authStore.user);
+        console.log('🔍 Is waiting for confirmation:', authStore.isWaitingForConfirmation);
+        console.log('📊 Auth loading state:', authStore.isLoading);
+        
+        // If still loading, wait a bit more
+        if (authStore.isLoading) {
+          console.log('⏳ Auth still loading, waiting...');
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+        
+        if (currentUser?.id) {
+          console.log('👤 User ID:', currentUser.id);
+          
+          // Check if user should be redirected to preferences
+          const shouldRedirect = await navigationService.shouldRedirectToPreferences(currentUser.id);
+          console.log('🎯 Should redirect to preferences:', shouldRedirect);
+          
+          setShouldRedirectToPreferences(shouldRedirect);
+        } else {
+          console.log('❌ No user found in authStore');
+        }
+      } catch (error) {
+        console.error('❌ Error initializing app:', error);
+      } finally {
+        setIsInitializing(false);
+      }
+    };
+
+    initializeApp();
+  }, [authStore.user, authStore.unconfirmedUser, authStore.isLoading]);
+
+  // Show loading while initializing or auth is loading
+  if (isInitializing || authStore.isLoading) {
+    return (
+      <View className="flex-1 justify-center items-center bg-white">
+        <ActivityIndicator size="large" color="#2563EB" />
+        <Text className="mt-4 text-gray-600">Loading...</Text>
+        {__DEV__ && (
+          <View className="mt-2">
+            <Text className="text-gray-500 text-sm text-center">
+              Auth loading: {authStore.isLoading ? 'Yes' : 'No'}
+            </Text>
+            <Text className="text-gray-500 text-sm text-center">
+              Waiting for confirmation: {authStore.isWaitingForConfirmation ? 'Yes' : 'No'}
+            </Text>
           </View>
-          <Text className="text-4xl font-bold text-gray-900 text-center mb-3">
-            RealEstate
-          </Text>
-          <Text className="text-lg text-gray-600 text-center max-w-xs">
-            Find your perfect home with ease
-          </Text>
-        </View>
-
-        {/* Auth Buttons */}
-        <View className="w-full max-w-sm">
-          <Link href="/auth/signin" asChild>
-            <TouchableOpacity 
-              className="w-full p-4 bg-blue-600 rounded-xl mb-4 shadow-sm"
-              activeOpacity={0.8}
-            >
-              <Text className="text-white text-center font-bold text-lg">
-                Sign In
-              </Text>
-            </TouchableOpacity>
-          </Link>
-
-          <Link href="/auth/signup" asChild>
-            <TouchableOpacity 
-              className="w-full p-4 border-2 border-blue-600 rounded-xl shadow-sm bg-white"
-              activeOpacity={0.8}
-            >
-              <Text className="text-blue-600 text-center font-bold text-lg">
-                Create Account
-              </Text>
-            </TouchableOpacity>
-          </Link>
-        </View>
-
-        {/* Features */}
-        <View className="mt-16 w-full max-w-sm">
-          <Text className="text-center text-gray-500 mb-6">
-            Why choose RealEstate?
-          </Text>
-          <View className="space-y-3">
-            <View className="flex-row items-center">
-              <View className="w-2 h-2 bg-blue-600 rounded-full mr-3" />
-              <Text className="text-gray-600">Advanced property search</Text>
-            </View>
-            <View className="flex-row items-center">
-              <View className="w-2 h-2 bg-blue-600 rounded-full mr-3" />
-              <Text className="text-gray-600">Real-time market data</Text>
-            </View>
-            <View className="flex-row items-center">
-              <View className="w-2 h-2 bg-blue-600 rounded-full mr-3" />
-              <Text className="text-gray-600">Connect with top agents</Text>
-            </View>
-            <View className="flex-row items-center">
-              <View className="w-2 h-2 bg-blue-600 rounded-full mr-3" />
-              <Text className="text-gray-600">Virtual property tours</Text>
-            </View>
-          </View>
-        </View>
+        )}
       </View>
-    </SafeAreaView>
-  );
+    );
+  }
+
+  const currentUser = authStore.getCurrentUser();
+  
+  console.log('🚀 Rendering with:', { 
+    hasUser: !!currentUser,
+    isConfirmed: !!authStore.user,
+    isWaitingForConfirmation: authStore.isWaitingForConfirmation,
+    shouldRedirectToPreferences,
+    authLoading: authStore.isLoading
+  });
+
+  // If user is waiting for email confirmation, show appropriate screen
+  if (authStore.isWaitingForConfirmation) {
+    console.log('📧 User waiting for email confirmation, staying on signup');
+    return <Redirect href="/auth/signup" />;
+  }
+
+  // Redirect to preferences if user was interrupted during setup
+  if (currentUser && shouldRedirectToPreferences) {
+    console.log('📍 Redirecting to preferences');
+    return <Redirect href="/property-preferences" />;
+  }
+
+  // Normal auth flow - only redirect to search if user is confirmed
+  if (authStore.user) {
+    console.log('🏠 Redirecting to search (confirmed user)');
+    return <Redirect href="/(tabs)/search" />;
+  }
+
+  console.log('🔐 Redirecting to signin (not logged in)');
+  return <Redirect href="/auth/signin" />;
 }

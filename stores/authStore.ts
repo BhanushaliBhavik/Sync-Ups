@@ -6,6 +6,8 @@ class AuthStore {
   isAuthenticated = false;
   isLoading = false;
   error: string | null = null;
+  unconfirmedUser: User | null = null; // User waiting for email confirmation
+  isWaitingForConfirmation = false;
 
   constructor() {
     makeAutoObservable(this);
@@ -14,6 +16,21 @@ class AuthStore {
   setUser(user: User | null) {
     this.user = user;
     this.isAuthenticated = !!user;
+    
+    // If setting a real user, clear unconfirmed state
+    if (user) {
+      this.unconfirmedUser = null;
+      this.isWaitingForConfirmation = false;
+    }
+  }
+
+  setUnconfirmedUser(user: User | null) {
+    this.unconfirmedUser = user;
+    this.isWaitingForConfirmation = !!user;
+    
+    // Don't set as main user until confirmed
+    this.user = null;
+    this.isAuthenticated = false;
   }
 
   setLoading(loading: boolean) {
@@ -27,11 +44,18 @@ class AuthStore {
   signOut() {
     this.user = null;
     this.isAuthenticated = false;
+    this.unconfirmedUser = null;
+    this.isWaitingForConfirmation = false;
     this.error = null;
   }
 
   clearError() {
     this.error = null;
+  }
+
+  // Helper to get current user (confirmed or unconfirmed)
+  getCurrentUser(): User | null {
+    return this.user || this.unconfirmedUser;
   }
 }
 

@@ -142,15 +142,19 @@ export const authService = {
             firstName: firstName.trim(),
             lastName: lastName.trim(),
           },
-          // Temporarily disable email confirmation for testing
+          // Explicitly disable email confirmation for auto sign-in
           emailRedirectTo: undefined,
         },
       });
 
-      console.log('Sign up response:', { authData, error });
+      console.log('📋 Sign up response:', {
+        user: authData.user ? 'Present' : 'Missing',
+        session: authData.session ? 'Present' : 'Missing',
+        error: error ? error.message : 'None'
+      });
 
       if (error) {
-        console.error('Sign up error:', error);
+        console.error('❌ Sign up error:', error);
         
         // Handle specific signup errors
         if (error.message.includes('User already registered')) {
@@ -168,7 +172,35 @@ export const authService = {
         throw new AuthError('Sign up failed. Please try again.');
       }
 
-      console.log('Sign up successful, user created:', authData.user.id);
+      // Check if we have a session (user should be automatically signed in)
+      if (!authData.session) {
+        console.warn('⚠️ No session after signup - user may need to confirm email');
+        // If no session, try to sign in the user automatically
+        console.log('🔄 Attempting auto sign-in after signup...');
+        
+        try {
+          const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+            email: email.trim(),
+            password,
+          });
+          
+          console.log('🔄 Auto sign-in result:', {
+            user: signInData.user ? 'Present' : 'Missing',
+            session: signInData.session ? 'Present' : 'Missing',
+            error: signInError ? signInError.message : 'None'
+          });
+          
+          if (signInError || !signInData.session) {
+            console.warn('⚠️ Auto sign-in failed, user may need email confirmation');
+          }
+        } catch (autoSignInError) {
+          console.warn('⚠️ Auto sign-in attempt failed:', autoSignInError);
+        }
+      } else {
+        console.log('✅ Session established after signup - user is automatically signed in');
+      }
+
+      console.log('✅ Sign up successful, user created:', authData.user.id);
 
       return {
         id: authData.user.id,
@@ -371,20 +403,25 @@ export const authService = {
   // Listen to auth state changes
   onAuthStateChange(callback: (user: User | null) => void) {
     return supabase.auth.onAuthStateChange((event, session) => {
+      console.log('🔄 AuthService: Auth state change event:', event, 'Session:', session ? 'Present' : 'None');
+      
       try {
         if (session?.user) {
-          callback({
+          const user = {
             id: session.user.id,
             email: session.user.email || '',
             firstName: session.user.user_metadata?.firstName || '',
             lastName: session.user.user_metadata?.lastName || '',
             createdAt: session.user.created_at || '',
-          });
+          };
+          console.log('✅ AuthService: Calling callback with user:', user.id);
+          callback(user);
         } else {
+          console.log('❌ AuthService: Calling callback with null (no session)');
           callback(null);
         }
       } catch (error) {
-        console.error('Error in auth state change:', error);
+        console.error('❌ AuthService: Error in auth state change:', error);
         callback(null);
       }
     });

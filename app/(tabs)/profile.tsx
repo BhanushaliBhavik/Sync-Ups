@@ -1,13 +1,16 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { Alert, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthStore, useSignOut } from '../../hooks/useAuth';
 import { User } from '../../services/authService';
+import { preferencesService } from '../../services/preferencesService';
 
 export default function ProfileScreen() {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [hasPreferences, setHasPreferences] = useState<boolean | null>(null);
   const authStore = useAuthStore();
   const signOutMutation = useSignOut();
 
@@ -32,6 +35,27 @@ export default function ProfileScreen() {
       clearTimeout(timer);
     };
   }, [authStore]);
+
+  // Check if user has preferences
+  useEffect(() => {
+    const checkPreferences = async () => {
+      if (user?.id) {
+        try {
+          const preferences = await preferencesService.getPreferences(user.id);
+          setHasPreferences(!!preferences);
+        } catch (error) {
+          console.log('Could not check preferences:', error);
+          setHasPreferences(false);
+        }
+      }
+    };
+
+    checkPreferences();
+  }, [user?.id]);
+
+  const handleManagePreferences = () => {
+    router.push('/property-preferences?mode=edit');
+  };
 
   const handleSignOut = async () => {
     Alert.alert(
@@ -96,20 +120,45 @@ export default function ProfileScreen() {
 
         {/* Profile Options */}
         <View className="space-y-4 mb-8">
-          <TouchableOpacity className="p-4 border border-gray-300 rounded-lg">
-            <Text className="text-gray-700 font-medium">Edit Profile</Text>
+          <TouchableOpacity className="p-4 border border-gray-300 rounded-lg flex-row items-center">
+            <Ionicons name="person-outline" size={20} color="#6B7280" />
+            <Text className="text-gray-700 font-medium ml-3">Edit Profile</Text>
           </TouchableOpacity>
           
-          <TouchableOpacity className="p-4 border border-gray-300 rounded-lg">
-            <Text className="text-gray-700 font-medium">Saved Properties</Text>
+          {/* Property Preferences */}
+          {hasPreferences !== null && (
+            <TouchableOpacity
+              className="p-4 border border-gray-300 rounded-lg flex-row items-center justify-between"
+              onPress={handleManagePreferences}
+            >
+              <View className="flex-row items-center">
+                <Ionicons name="home-outline" size={20} color="#6B7280" />
+                <Text className="text-gray-700 font-medium ml-3">
+                  Property Preferences
+                </Text>
+              </View>
+              <View className="flex-row items-center">
+                {hasPreferences && (
+                  <View className="w-2 h-2 bg-green-500 rounded-full mr-2" />
+                )}
+                <Ionicons name="chevron-forward" size={16} color="#9CA3AF" />
+              </View>
+            </TouchableOpacity>
+          )}
+          
+          <TouchableOpacity className="p-4 border border-gray-300 rounded-lg flex-row items-center">
+            <Ionicons name="heart-outline" size={20} color="#6B7280" />
+            <Text className="text-gray-700 font-medium ml-3">Saved Properties</Text>
           </TouchableOpacity>
           
-          <TouchableOpacity className="p-4 border border-gray-300 rounded-lg">
-            <Text className="text-gray-700 font-medium">Search History</Text>
+          <TouchableOpacity className="p-4 border border-gray-300 rounded-lg flex-row items-center">
+            <Ionicons name="time-outline" size={20} color="#6B7280" />
+            <Text className="text-gray-700 font-medium ml-3">Search History</Text>
           </TouchableOpacity>
           
-          <TouchableOpacity className="p-4 border border-gray-300 rounded-lg">
-            <Text className="text-gray-700 font-medium">Notification Settings</Text>
+          <TouchableOpacity className="p-4 border border-gray-300 rounded-lg flex-row items-center">
+            <Ionicons name="notifications-outline" size={20} color="#6B7280" />
+            <Text className="text-gray-700 font-medium ml-3">Notification Settings</Text>
           </TouchableOpacity>
         </View>
 
